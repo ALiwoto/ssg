@@ -19,7 +19,7 @@ const (
 	JA_Str        = "❞\u200d；" // start character (") for string in japanese.
 	JA_Equality   = "＝\u200d；" // equal character (＝) in japanese.
 	JA_Ddot       = "：\u200d；" // ddot character (:) in japanese.
-	JA_Cama       = "、\u200d；" // cama character (,) in japanese.
+	JA_Coma       = "、\u200d；" // coma character (,) in japanese.
 	JA_RealStr    = "\uff4e"   // the real str
 	JA_BrOpen     = "「\u200d；" // the real str
 	JA_BrClose    = "」\u200d；" // the real str
@@ -27,7 +27,7 @@ const (
 	BACK_Flag     = `\--`
 	BACK_Equality = `\=`
 	BACK_Ddot     = `\:`
-	BACK_Cama     = `\,`
+	BACK_Coma     = `\,`
 	BACK_BrOpen   = `\[`
 	BACK_BrClose  = `\]`
 )
@@ -55,7 +55,7 @@ const (
 	DotStr          = "." // dot : .
 	LineStr         = "-" // line : -
 	EMPTY           = ""  //an empty string.
-	UNDER           = "_" // an underscope : _
+	UNDER           = "_" // an underscore : _
 	STR_SIGN        = `"` // the string sign : "
 	CHAR_STR        = '"' // the string sign : '"'
 )
@@ -70,7 +70,7 @@ const (
 	LineEscape      = "\n"
 	R_ESCAPE        = "\r"
 	SEMICOLON       = ";"
-	CAMA            = ","
+	Coma            = ","
 	ParaOpen        = "("
 	ParaClose       = ")"
 	NullStr         = "null"
@@ -78,7 +78,7 @@ const (
 	SingleQ         = "'"
 	DoubleQJ        = "”"
 	BracketOpen     = "["
-	Bracketclose    = "]"
+	BracketClose    = "]"
 	Star            = "*"
 	BackSlash       = "\\"
 	DoubleBackSlash = "\\\\"
@@ -108,8 +108,8 @@ const (
 	SpaceChar        = ' ' // space: ' '
 	DPointChar       = ':' // double point: ':'
 	BracketOpenChar  = '[' // bracket open: '['
-	BracketcloseChar = ']' // bracket close: ']'
-	CamaChar         = ',' // cama: ','
+	BracketCloseChar = ']' // bracket close: ']'
+	ComaChar         = ',' // coma: ','
 )
 
 const (
