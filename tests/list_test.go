@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"github.com/AnimeKaizoku/ssg/ssg"
+	"github.com/ALiwoto/ssg/ssg"
 )
 
 func TestList01(t *testing.T) {

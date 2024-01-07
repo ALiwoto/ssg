@@ -12,10 +12,10 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/AnimeKaizoku/ssg/ssg/internal"
-	"github.com/AnimeKaizoku/ssg/ssg/rangeValues"
-	"github.com/AnimeKaizoku/ssg/ssg/shellUtils"
-	"github.com/AnimeKaizoku/ssg/ssg/strongParser"
+	"github.com/ALiwoto/ssg/ssg/internal"
+	"github.com/ALiwoto/ssg/ssg/rangeValues"
+	"github.com/ALiwoto/ssg/ssg/shellUtils"
+	"github.com/ALiwoto/ssg/ssg/strongParser"
 )
 
 // Ss will generate a new StrongString

@@ -34,9 +34,9 @@ SSG even provides utilities to interact with Git repositories directly from your
 
 Getting started with SSG is a breeze. Follow these simple steps:
 
-1. Install the SSG library by running `go get github.com/AnimeKaizoku/ssg`.
-2. Import the SSG package into your Go code: `import "github.com/AnimeKaizoku/ssg"`.
-3. Explore the extensive documentation and examples available on our [GitHub repository](https://github.com/AnimeKaizoku/ssg).
+1. Install the SSG library by running `go get github.com/ALiwoto/ssg`.
+2. Import the SSG package into your Go code: `import "github.com/ALiwoto/ssg"`.
+3. Explore the extensive documentation and examples available on our [GitHub repository](https://github.com/ALiwoto/ssg).
 
 ## Contributing
 
@@ -44,10 +44,10 @@ We welcome contributions from the community to make SSG even more powerful and v
 
 ## License
 
-SSG is released under the [MIT License](https://github.com/AnimeKaizoku/ssg/blob/master/LICENSE). Feel free to use, modify, and distribute the library in your own projects.
+SSG is released under the [MIT License](https://github.com/ALiwoto/ssg/blob/master/LICENSE). Feel free to use, modify, and distribute the library in your own projects.
 
 ## Support
 
-If you have any questions, suggestions, or issues, please don't hesitate to reach out to our friendly community on our [GitHub Discussions](https://github.com/AnimeKaizoku/ssg/discussions) page. We're here to help!
+If you have any questions, suggestions, or issues, please don't hesitate to reach out to our friendly community on our [GitHub Discussions](https://github.com/ALiwoto/ssg/discussions) page. We're here to help!
 
 Let SSG simplify your Go development journey. Happy coding with SSG!

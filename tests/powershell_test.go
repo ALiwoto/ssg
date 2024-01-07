@@ -5,7 +5,7 @@ import (
 	"log"
 	"testing"
 
-	"github.com/AnimeKaizoku/ssg/ssg"
+	"github.com/ALiwoto/ssg/ssg"
 )
 
 const (

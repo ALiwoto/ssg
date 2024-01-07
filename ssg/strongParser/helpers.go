@@ -9,7 +9,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/AnimeKaizoku/ssg/ssg/internal"
+	"github.com/ALiwoto/ssg/ssg/internal"
 )
 
 // New creates a new ConfigParser.

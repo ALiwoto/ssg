@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/AnimeKaizoku/ssg/ssg/rangeValues"
-	"github.com/AnimeKaizoku/ssg/ssg/shellUtils"
+	"github.com/ALiwoto/ssg/ssg/rangeValues"
+	"github.com/ALiwoto/ssg/ssg/shellUtils"
 )
 
 type ExpiringValue[T any] struct {

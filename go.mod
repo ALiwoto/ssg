@@ -3,7 +3,7 @@
 // This file is subject to the terms and conditions defined in
 // file 'LICENSE', which is part of the source code.
 
-module github.com/AnimeKaizoku/ssg
+module github.com/ALiwoto/ssg
 
 go 1.18
 

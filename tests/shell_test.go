@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	ws "github.com/AnimeKaizoku/ssg/ssg"
+	ws "github.com/ALiwoto/ssg/ssg"
 )
 
 func TestShell01(t *testing.T) {

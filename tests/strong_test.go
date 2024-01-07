@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"testing"
 
-	ws "github.com/AnimeKaizoku/ssg/ssg"
+	ws "github.com/ALiwoto/ssg/ssg"
 )
 
 func TestAppendUnique(t *testing.T) {

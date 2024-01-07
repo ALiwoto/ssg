@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/AnimeKaizoku/ssg/ssg/strongParser"
+	"github.com/ALiwoto/ssg/ssg/strongParser"
 )
 
 type MyConfigStruct struct {

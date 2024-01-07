@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AnimeKaizoku/ssg/ssg"
+	"github.com/ALiwoto/ssg/ssg"
 )
 
 type TopString string

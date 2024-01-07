@@ -5,7 +5,7 @@
 
 package ssg
 
-import "github.com/AnimeKaizoku/ssg/ssg/internal"
+import "github.com/ALiwoto/ssg/ssg/internal"
 
 // the prefix values for commands.
 const (
