@@ -103,7 +103,7 @@ func ParseConfigWithOption(value any, filename string, opt *ConfigParserOptions)
 func ParseMainAndArrays[mT any, aT any](filename string, opt *ConfigParserOptions) (*MainAndArrayContainer[mT, aT], error) {
 	p, err := Parse(filename)
 	if err != nil {
-		if opt == nil && !opt.ReadEnv {
+		if opt == nil || !opt.ReadEnv {
 			return nil, err
 		}
 
@@ -117,7 +117,7 @@ func ParseMainAndArrays[mT any, aT any](filename string, opt *ConfigParserOption
 func ParseMainAndArraysStr[mT any, aT any](valueStr string, opt *ConfigParserOptions) (*MainAndArrayContainer[mT, aT], error) {
 	p, err := parseString(valueStr)
 	if err != nil {
-		if opt == nil && !opt.ReadEnv {
+		if opt == nil || !opt.ReadEnv {
 			return nil, err
 		}
 
@@ -571,10 +571,9 @@ func parseFile(file *os.File) (*ConfigParser, error) {
 
 	reader := bufio.NewReader(file)
 	var lineNo int
-	var err error
 	var curSect *Section
 
-	for err == nil {
+	for {
 		l, _, err := reader.ReadLine()
 		if err != nil {
 			break
