@@ -484,13 +484,13 @@ func IsRuneNumber(r rune) bool {
 	return false
 }
 
-func repairString(value *string) *string {
+func repairString(value string) string {
 	entered := false
 	ignoreNext := false
 	final := EMPTY
-	last := len(*value) - BaseIndex
+	last := len(value) - BaseIndex
 	next := BaseIndex
-	for i, current := range *value {
+	for i, current := range value {
 		if ignoreNext {
 			ignoreNext = false
 			continue
@@ -518,7 +518,7 @@ func repairString(value *string) *string {
 				if current == LineChar {
 					if i != last {
 						next = i + BaseOneIndex
-						if (*value)[next] == LineChar {
+						if value[next] == LineChar {
 							final += BackSlash +
 								string(current) + string(current)
 							ignoreNext = true
@@ -532,7 +532,7 @@ func repairString(value *string) *string {
 		final += string(current)
 	}
 
-	return &final
+	return final
 }
 
 func isSpecial(r rune) bool {

@@ -33,15 +33,23 @@ func (s *SafeMap[TKey, TValue]) Add(key TKey, value *TValue) {
 	s.values[key] = value
 }
 
-func (s *SafeMap[TKey, TValue]) ForEach(fn func(TKey, *TValue) bool) {
+func (s *SafeMap[TKey, TValue]) ForEach(fn func(TKey, *TValue) ForEachOperation) {
 	if fn == nil {
 		return
 	}
 
-	s.lock()
+myFor:
 	for key, value := range s.values {
-		if fn(key, value) {
+		switch fn(key, value) {
+		case ForEachOperationContinue:
+			continue
+		case ForEachOperationBreak:
+			break myFor
+		case ForEachOperationRemove:
 			s.delete(key, false)
+		case ForEachOperationRemoveBreak:
+			s.delete(key, false)
+			break myFor
 		}
 	}
 
@@ -49,51 +57,46 @@ func (s *SafeMap[TKey, TValue]) ForEach(fn func(TKey, *TValue) bool) {
 }
 
 func (s *SafeMap[TKey, TValue]) ToArray() []TValue {
-	var array []TValue
 	s.rLock()
+
+	result := make([]TValue, len(s.values))
+	i := 0
 	for _, v := range s.values {
 		if v == nil {
-			array = append(array, s._default)
+			result[i] = s._default
+			i++
 			continue
 		}
 
-		array = append(array, *v)
+		result[i] = *v
+		i++
 	}
 	s.rUnlock()
 
-	return array
+	return result
 }
 
 func (s *SafeMap[TKey, TValue]) ToPointerArray() []*TValue {
-	var array []*TValue
 	s.rLock()
+
+	result := make([]*TValue, len(s.values))
+	i := 0
 	for _, v := range s.values {
 		if v == nil {
 			// most likely impossible, this checker is here just for more safety.
 			continue
 		}
 
-		array = append(array, v)
+		result[i] = v
+		i++
 	}
 	s.rUnlock()
 
-	return array
+	return result
 }
 
 func (s *SafeMap[TKey, TValue]) ToList() GenericList[*TValue] {
-	list := GetEmptyList[*TValue]()
-	s.rLock()
-	for _, v := range s.values {
-		if v == nil {
-			// most likely impossible, this checker is here just for more safety.
-			continue
-		}
-
-		list.Add(v)
-	}
-	s.rUnlock()
-
-	return list
+	return GetListFromArray(s.ToPointerArray())
 }
 
 func (s *SafeMap[TKey, TValue]) AddList(keyGetter func(*TValue) TKey, elements ...TValue) {

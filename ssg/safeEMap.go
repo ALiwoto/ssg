@@ -130,7 +130,7 @@ func (s *SafeEMap[TKey, TValue]) Delete(key TKey) {
 	s.delete(key, true)
 }
 
-func (s *SafeEMap[TKey, TValue]) ForEach(fn func(TKey, *TValue) bool) {
+func (s *SafeEMap[TKey, TValue]) ForEach(fn func(TKey, *TValue) ForEachOperation) {
 	if fn == nil {
 		return
 	}
@@ -138,6 +138,7 @@ func (s *SafeEMap[TKey, TValue]) ForEach(fn func(TKey, *TValue) bool) {
 
 	var tmpValue *TValue
 
+myFor:
 	for key, value := range s.values {
 		if value == nil {
 			tmpValue = nil
@@ -145,8 +146,16 @@ func (s *SafeEMap[TKey, TValue]) ForEach(fn func(TKey, *TValue) bool) {
 			tmpValue = value.GetValue()
 		}
 
-		if fn(key, tmpValue) {
+		switch fn(key, tmpValue) {
+		case ForEachOperationContinue:
+			continue
+		case ForEachOperationBreak:
+			break myFor
+		case ForEachOperationRemove:
 			s.delete(key, false)
+		case ForEachOperationRemoveBreak:
+			s.delete(key, false)
+			break myFor
 		}
 	}
 

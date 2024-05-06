@@ -133,6 +133,10 @@ type UInt8Container = rangeValues.IntContainer[uint8]
 
 type ExecuteCommandResult = shellUtils.ExecuteCommandResult
 
+// ForEachOperation describes an operation that has to be returned
+// from a ForEach method.
+type ForEachOperation int
+
 //type safeList[T any] #TODO: implement safe-list
 
 type StringUniqueIdContainer = UniqueIdContainer[string]

@@ -16,20 +16,19 @@ const (
 )
 
 const (
-	JA_Str        = "❞\u200d；" // start character (") for string in japanese.
-	JA_Equality   = "＝\u200d；" // equal character (＝) in japanese.
-	JA_Ddot       = "：\u200d；" // ddot character (:) in japanese.
-	JA_Coma       = "、\u200d；" // coma character (,) in japanese.
-	JA_RealStr    = "\uff4e"   // the real str
-	JA_BrOpen     = "「\u200d；" // the real str
-	JA_BrClose    = "」\u200d；" // the real str
-	BACK_Str      = `\"`
-	BACK_Flag     = `\--`
-	BACK_Equality = `\=`
-	BACK_Ddot     = `\:`
-	BACK_Coma     = `\,`
-	BACK_BrOpen   = `\[`
-	BACK_BrClose  = `\]`
+	// ForEachOperationBreak will just continue the loop without doing anything.
+	ForEachOperationContinue = 0
+
+	// ForEachOperationBreak will just break the loop without doing anything.
+	ForEachOperationBreak = 1
+
+	// ForEachOperationBreak will just remove the current item from the list
+	// and continue the loop.
+	ForEachOperationRemove = 2
+
+	// ForEachOperationBreak will remove the current item from the list
+	// and break the loop.
+	ForEachOperationRemoveBreak = 3
 )
 
 // the base constant values.

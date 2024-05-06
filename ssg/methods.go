@@ -357,7 +357,7 @@ func (s *StrongString) LockSpecial() {
 	// it will escape them.
 	// if it wasn't for this function, members had to
 	// escape all of these bullshits themselves...
-	final = *repairString(&final)
+	final = repairString(final)
 
 	final = strings.ReplaceAll(final, BACK_FLAG, JA_FLAG)
 	final = strings.ReplaceAll(final, BACK_EQUALITY, JA_EQUALITY)
@@ -584,15 +584,24 @@ func (s *AdvancedMap[TKey, TValue]) GetRandom() *TValue {
 	return value
 }
 
-func (s *AdvancedMap[TKey, TValue]) ForEach(fn func(TKey, *TValue) bool) {
+func (s *AdvancedMap[TKey, TValue]) ForEach(fn func(TKey, *TValue) ForEachOperation) {
 	if fn == nil {
 		return
 	}
 	s.lock()
 
+myFor:
 	for key, value := range s.values {
-		if fn(key, value) {
+		switch fn(key, value) {
+		case ForEachOperationContinue:
+			continue
+		case ForEachOperationBreak:
+			break myFor
+		case ForEachOperationRemove:
 			s.delete(key, false)
+		case ForEachOperationRemoveBreak:
+			s.delete(key, false)
+			break myFor
 		}
 	}
 
