@@ -37,6 +37,7 @@ func (s *SafeMap[TKey, TValue]) ForEach(fn func(TKey, *TValue) ForEachOperation)
 	if fn == nil {
 		return
 	}
+	s.lock()
 
 myFor:
 	for key, value := range s.values {
