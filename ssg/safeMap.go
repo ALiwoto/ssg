@@ -38,6 +38,7 @@ func (s *SafeMap[TKey, TValue]) ForEach(fn func(TKey, *TValue) ForEachOperation)
 		return
 	}
 	s.lock()
+	defer s.unlock()
 
 myFor:
 	for key, value := range s.values {
@@ -53,8 +54,24 @@ myFor:
 			break myFor
 		}
 	}
+}
 
-	s.unlock()
+func (s *SafeMap[TKey, TValue]) ForEachReadOnly(fn func(TKey, *TValue) ForEachOperation) {
+	if fn == nil {
+		return
+	}
+	s.rLock()
+	defer s.rUnlock()
+
+myFor:
+	for key, value := range s.values {
+		switch fn(key, value) {
+		case ForEachOperationContinue, ForEachOperationRemove:
+			continue
+		case ForEachOperationBreak, ForEachOperationRemoveBreak:
+			break myFor
+		}
+	}
 }
 
 func (s *SafeMap[TKey, TValue]) ToArray() []TValue {

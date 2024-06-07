@@ -14,7 +14,6 @@ func extractFieldValue[T comparable](
 	currentIndex int, section string,
 	converter fieldValueConverter[T]) T {
 
-	var realDefault T
 	var resultValue T
 	fByName := myType.Field(currentIndex)
 	if section == "" {
@@ -36,7 +35,7 @@ func extractFieldValue[T comparable](
 	if err == nil {
 		// first try: from config file.
 		resultValue, err = converter(fType, theValue)
-		if err == nil && resultValue != realDefault {
+		if err == nil {
 			return resultValue
 		}
 	}
@@ -61,7 +60,7 @@ func extractFieldValue[T comparable](
 		envValue := os.Getenv(envTry)
 		if envValue != "" {
 			resultValue, err = converter(fType, envValue)
-			if err == nil && resultValue != realDefault {
+			if err == nil {
 				return resultValue
 			}
 		}
@@ -83,7 +82,13 @@ func toSnakeCase(s string) string {
 	return string(result)
 }
 
-func extractStr(fType, s string) (string, error) { return s, nil }
+func extractStr(fType, s string) (string, error) {
+	if s == "" {
+		return "", ErrEmptyStringValue
+	}
+
+	return s, nil
+}
 
 func parseAsRune(value string) rune {
 	if value == "" {
@@ -110,7 +115,13 @@ func extractUInt64(_, strValue string) (uint64, error) {
 }
 
 func extractBool(fType, strValue string) (bool, error) {
-	return BoolMapping[strings.ToLower(strValue)], nil
+	strValue = strings.TrimSpace(strings.ToLower(strValue))
+	strValue = strings.Trim(strValue, "\"")
+	v, ok := BoolMapping[strings.ToLower(strValue)]
+	if !ok {
+		return false, ErrInvalidBoolValue
+	}
+	return v, nil
 }
 
 func extractFloat64(fType, strValue string) (float64, error) {

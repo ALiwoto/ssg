@@ -313,9 +313,8 @@ func parseFinalConfig(v any, section string, configValue *ConfigParser) error {
 				section,
 				extractBool,
 			)
-			if boolValue {
-				currentField.SetBool(boolValue)
-			}
+
+			currentField.SetBool(boolValue)
 		case reflect.Float32, reflect.Float64:
 			fByName := myType.Field(currentIndex)
 			if !fByName.IsExported() {
