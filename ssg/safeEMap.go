@@ -398,6 +398,10 @@ func (s *SafeEMap[TKey, TValue]) SetOnExpired(event func(key TKey, value TValue)
 	s.onExpired = event
 }
 
+func (s *SafeEMap[TKey, TValue]) SetOnExpiredPtr(event func(key TKey, value *TValue)) {
+	s.onExpiredPtr = event
+}
+
 func (s *SafeEMap[TKey, TValue]) SetInterval(duration time.Duration) {
 	s.checkInterval = duration
 }
@@ -423,15 +427,20 @@ func (s *SafeEMap[TKey, TValue]) DoCheck() {
 	}
 
 	s.lock()
+	defer s.unlock()
+
 	for i, current := range s.values {
 		if current == nil || current.IsExpired(s.expiration) {
 			delete(s.values, i)
 			if s.onExpired != nil {
 				go s.onExpired(i, s.getRealValue(current))
 			}
+
+			if s.onExpiredPtr != nil {
+				s.onExpiredPtr(i, current.GetValue())
+			}
 		}
 	}
-	s.unlock()
 }
 
 func (s *SafeEMap[TKey, TValue]) checkLoop() {
@@ -452,15 +461,6 @@ func (s *SafeEMap[TKey, TValue]) checkLoop() {
 			return
 		}
 
-		s.lock()
-		for i, current := range s.values {
-			if current == nil || current.IsExpired(s.expiration) {
-				delete(s.values, i)
-				if s.onExpired != nil {
-					go s.onExpired(i, s.getRealValue(current))
-				}
-			}
-		}
-		s.unlock()
+		s.DoCheck()
 	}
 }

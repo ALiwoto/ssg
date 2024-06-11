@@ -94,6 +94,10 @@ type SafeEMap[TKey comparable, TValue any] struct {
 	// onExpired is the event function that will be called when a value with the certain
 	// key on the map is expired. this event function will be called in a new goroutine.
 	onExpired func(key TKey, value TValue)
+
+	// onExpiredPtr is the event function that will be called when a value with the certain
+	// key on the map is expired. this event function will NOT be called in a new goroutine.
+	onExpiredPtr func(key TKey, value *TValue)
 }
 
 // EndpointResponse is the generalized form of a response from a HTTP API.
