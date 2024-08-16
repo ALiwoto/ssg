@@ -278,6 +278,7 @@ func RunPowerShellAsyncWithChan(command string, finishedChan chan bool) *Execute
 	return shellUtils.RunPowerShellAsyncWithChan(command, finishedChan)
 }
 
+// ToBool converts the given string to bool.
 func ToBool(str string) bool {
 	return strongParser.BoolMapping[strings.ToLower(strings.TrimSpace(str))]
 }
@@ -288,30 +289,37 @@ func AppendUnique[T comparable](slice []T, value ...T) []T {
 	return internal.AppendUnique(slice, value...)
 }
 
+// ToBase10 converts the given integer value to base 10 string representation.
 func ToBase10[T rangeValues.Integer](value T) string {
 	return strconv.FormatInt(int64(value), 10)
 }
 
+// ToBase16 converts the given integer value to base 16 string representation.
 func ToBase16[T rangeValues.Integer](value T) string {
 	return strconv.FormatInt(int64(value), 16)
 }
 
+// ToBase18 converts the given integer value to base 18 string representation.
 func ToBase18[T rangeValues.Integer](value T) string {
 	return strconv.FormatInt(int64(value), 18)
 }
 
+// ToBase20 converts the given integer value to base 20 string representation.
 func ToBase20[T rangeValues.Integer](value T) string {
 	return strconv.FormatInt(int64(value), 20)
 }
 
+// ToBase28 converts the given integer value to base 28 string representation.
 func ToBase28[T rangeValues.Integer](value T) string {
 	return strconv.FormatInt(int64(value), 28)
 }
 
+// ToBase30 converts the given integer value to base 30 string representation.
 func ToBase30[T rangeValues.Integer](value T) string {
 	return strconv.FormatInt(int64(value), 30)
 }
 
+// ToBase32 converts the given integer value to base 32 string representation.
 func ToBase32[T rangeValues.Integer](value T) string {
 	return strconv.FormatInt(int64(value), 32)
 }
@@ -327,10 +335,12 @@ func ToValidIntegerString(value string) string {
 	return newValue
 }
 
+// Title function will convert the given string to title case.
 func Title(value string) string {
 	return _titleCaser.String(value)
 }
 
+// ToInt64 converts a specified string value to int64.
 func ToInt64(value string) int64 {
 	i, _ := strconv.ParseInt(ToValidIntegerString(value), 10, 64)
 	return i
@@ -366,16 +376,27 @@ func ToInteger[T rangeValues.Integer](value string) T {
 	return defaultValue
 }
 
+// ToInt32 converts a specified string value to int32.
 func ToInt32(value string) int32 {
 	i, _ := strconv.ParseInt(ToValidIntegerString(value), 10, 32)
 	return int32(i)
 }
 
+// ToInt converts a specified string value to integer.
+// Unlike other ToIntX functions, this function does not sanitize the input,
+// it will straight pass it to the `strconv.Atoi` function.
+func ToInt(value string) int {
+	i, _ := strconv.Atoi(value)
+	return i
+}
+
+// ToInt16 converts a specified string value to int16.
 func ToInt16(value string) int16 {
 	i, _ := strconv.ParseInt(ToValidIntegerString(value), 10, 16)
 	return int16(i)
 }
 
+// ToInt8 converts a specified string value to int8.
 func ToInt8(value string) int8 {
 	i, _ := strconv.ParseInt(ToValidIntegerString(value), 10, 8)
 	return int8(i)
@@ -385,6 +406,9 @@ func IsMixedCase(value string) bool {
 	return strings.ToLower(value) != value && strings.ToUpper(value) != value
 }
 
+// RecoverPanic is an empty panic recover. Good for when you don't care
+// about logging the panic, but you don't want the program to crash.
+// This function should be used in defer statements.
 func RecoverPanic() {
 	_ = recover()
 }
@@ -427,9 +451,22 @@ func NewSafeEMap[TKey comparable, TValue any]() *SafeEMap[TKey, TValue] {
 	}
 }
 
+// NewNumIdGenerator initializes an empty NumIdGenerator and returns it.
+// The current value will be set to the default value of the type (0).
+// The returned value is safe to use in concurrent environments.
 func NewNumIdGenerator[T rangeValues.Integer]() *NumIdGenerator[T] {
 	return &NumIdGenerator[T]{
 		mut: &sync.Mutex{},
+	}
+}
+
+// NumGeneratorFrom initializes a NumIdGenerator with the given value
+// and returns it.
+// The returned value is safe to use in concurrent environments.
+func NumGeneratorFrom[T rangeValues.Integer](from T) *NumIdGenerator[T] {
+	return &NumIdGenerator[T]{
+		current: from,
+		mut:     &sync.Mutex{},
 	}
 }
 
