@@ -513,6 +513,15 @@ func Clone[T any](value *T) *T {
 	return &tmp
 }
 
+// IsCharNumber returns true if the given byte is a number.
+func IsCharNumber(c byte) bool {
+	return '0' <= c && c <= '9'
+}
+
+// IsRuneNumber returns true if the given rune is a number.
+// NOTE: this function only checks for normal digits; not
+// localized digits; for that, you have to use the unicode.IsNumber
+// function.
 func IsRuneNumber(r rune) bool {
 	if r <= unicode.MaxLatin1 {
 		return '0' <= r && r <= '9'
