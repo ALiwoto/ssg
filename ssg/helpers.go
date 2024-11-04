@@ -6,6 +6,8 @@
 package ssg
 
 import (
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -470,14 +472,17 @@ func NumGeneratorFrom[T rangeValues.Integer](from T) *NumIdGenerator[T] {
 	}
 }
 
+// IsAllLower returns true if the given string is all lower case.
 func IsAllLower(value string) bool {
 	return strings.ToLower(value) == value
 }
 
+// IsAllUpper returns true if the given string is all upper case.
 func IsAllUpper(value string) bool {
 	return strings.ToUpper(value) == value
 }
 
+// IsAllNumber returns true if the given string is all number.
 func IsAllNumber(str string) bool {
 	for _, s := range str {
 		if !IsRuneNumber(s) {
@@ -488,6 +493,7 @@ func IsAllNumber(str string) bool {
 	return true
 }
 
+// IsAllNumbers returns true if all the given strings are all number.
 func IsAllNumbers(str ...string) bool {
 	for _, ss := range str {
 		if !IsAllNumber(ss) {
@@ -528,6 +534,60 @@ func IsRuneNumber(r rune) bool {
 	}
 
 	return false
+}
+
+// WriteFile will write the given content to the specified file.
+// If the file does not exist, it will create it.
+// Please do note that this function will discard the error returned
+// by file.Close, so if you need that, you should write the
+// function yourself in your own code.
+func WriteFileStr(path string, content string) error {
+	// Create the directory if it doesn't exist
+	err := os.MkdirAll(filepath.Dir(path), os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	// Write the content to the file
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = file.WriteString(content)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// WriteFile will write the given content to the specified file.
+// If the file does not exist, it will create it.
+// Please do note that this function will discard the error returned
+// by file.Close, so if you need that, you should write the
+// function yourself in your own code.
+func WriteFile(path string, content []byte) error {
+	// Create the directory if it doesn't exist
+	err := os.MkdirAll(filepath.Dir(path), os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	// Write the content to the file
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = file.Write(content)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func repairString(value string) string {
