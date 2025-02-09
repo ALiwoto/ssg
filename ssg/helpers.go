@@ -6,6 +6,7 @@
 package ssg
 
 import (
+	"math/big"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -70,6 +71,31 @@ func ToQSlice(strs []string) []QString {
 		tmp[i] = SsPtr(current)
 	}
 	return tmp
+}
+
+// BigPow calculates a raised to the power of b, where a and b are big integers.
+// It returns a new big integer representing the result of the exponentiation.
+// If you need to calculate a^b mod m, use Exp(a, b, m) instead.
+func BigPow(a, b *big.Int) *big.Int {
+	return new(big.Int).Exp(a, b, nil)
+}
+
+// ContainsRepeated checks if a list of words contains any duplicates.
+// It returns true if there is at least one word that appears more than once,
+// and false otherwise.
+// For example:
+//
+//	ContainsRepeated(["apple", "banana", "cherry"]) == false
+//	ContainsRepeated(["apple", "banana", "apple"]) == true
+func ContainsRepeated(words []string) bool {
+	wordMap := make(map[string]bool)
+	for _, word := range words {
+		if wordMap[word] { // Simplified check
+			return true
+		}
+		wordMap[word] = true
+	}
+	return false
 }
 
 func Split(s string, separator ...string) []string {
