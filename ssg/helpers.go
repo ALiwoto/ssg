@@ -675,3 +675,31 @@ func isSpecial(r rune) bool {
 		return false
 	}
 }
+
+// GenerateCurrentDateTime format of the date time will be dd/MM/yyyy HH:mm:ss
+func GenerateCurrentDateTime() string {
+	t := time.Now()
+
+	str := MakeSureNum(t.Day(), 2) + "/"
+	str += MakeSureNum(int(t.Month()), 2) + "/"
+	str += MakeSureNum(t.Year(), 4) + " "
+	str += MakeSureNum(t.Hour(), 2) + ":"
+	str += MakeSureNum(t.Minute(), 2) + ":"
+	str += MakeSureNum(t.Second(), 2)
+
+	return str
+}
+
+// GenerateSuitableDateTime will format of the date time to dd-MM-yyyy HH-mm-ss
+func GenerateSuitableDateTime() string {
+	t := time.Now()
+
+	str := MakeSureNum(t.Day(), 2) + "-"
+	str += MakeSureNum(int(t.Month()), 2) + "-"
+	str += MakeSureNum(t.Year(), 4) + "--"
+	str += MakeSureNum(t.Hour(), 2) + "-"
+	str += MakeSureNum(t.Minute(), 2) + "-"
+	str += MakeSureNum(t.Second(), 2)
+
+	return str
+}
