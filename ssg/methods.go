@@ -38,7 +38,7 @@ func (s *StrongString) Length() int {
 
 // isEmpty will check if this StrongString is empty or not.
 func (s *StrongString) IsEmpty() bool {
-	return s._value == nil || len(s._value) == BaseIndex
+	return len(s._value) == 0
 }
 
 // isEqual will check if the passed-by-value in the arg is equal to this
@@ -674,6 +674,8 @@ func (s *AdvancedMap[TKey, TValue]) ToPointerArray() []*TValue {
 func (s *AdvancedMap[TKey, TValue]) ToList() GenericList[*TValue] {
 	list := GetEmptyList[*TValue]()
 	s.lock()
+	defer s.unlock()
+
 	for _, v := range s.values {
 		if v == nil {
 			// most likely impossible, this checker is here just for more safety.
@@ -682,7 +684,6 @@ func (s *AdvancedMap[TKey, TValue]) ToList() GenericList[*TValue] {
 
 		list.Add(v)
 	}
-	s.unlock()
 
 	return list
 }

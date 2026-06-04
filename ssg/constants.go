@@ -125,3 +125,7 @@ const (
 const (
 	LIST_INDEX_NOTFOUND = -1
 )
+
+const (
+	MaxInt = int(^uint(0) >> 1)
+)

@@ -276,7 +276,7 @@ func ToArray(strs ...string) []string {
 	return strs
 }
 
-func ParseConfig(value interface{}, filename string) error {
+func ParseConfig(value any, filename string) error {
 	return strongParser.ParseConfig(value, filename)
 }
 
@@ -702,4 +702,37 @@ func GenerateSuitableDateTime() string {
 	str += MakeSureNum(t.Second(), 2)
 
 	return str
+}
+
+// JoinStr is a generic version of strings.Join that can work with any type that is based on string.
+func JoinStr[TElement ~string, TSep ~string](elems []TElement, sep TSep) string {
+	switch len(elems) {
+	case 0:
+		return ""
+	case 1:
+		return string(elems[0])
+	}
+
+	var n int
+	if len(sep) > 0 {
+		if len(sep) >= MaxInt/(len(elems)-1) {
+			panic("strings: Join output length overflow")
+		}
+		n += len(sep) * (len(elems) - 1)
+	}
+	for _, elem := range elems {
+		if len(elem) > MaxInt-n {
+			panic("strings: Join output length overflow")
+		}
+		n += len(elem)
+	}
+
+	var b strings.Builder
+	b.Grow(n)
+	b.WriteString(string(elems[0]))
+	for _, s := range elems[1:] {
+		b.WriteString(string(sep))
+		b.WriteString(string(s))
+	}
+	return b.String()
 }

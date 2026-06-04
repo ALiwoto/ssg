@@ -76,6 +76,7 @@ myFor:
 
 func (s *SafeMap[TKey, TValue]) ToArray() []TValue {
 	s.rLock()
+	defer s.rUnlock()
 
 	result := make([]TValue, len(s.values))
 	i := 0
@@ -89,13 +90,13 @@ func (s *SafeMap[TKey, TValue]) ToArray() []TValue {
 		result[i] = *v
 		i++
 	}
-	s.rUnlock()
 
 	return result
 }
 
 func (s *SafeMap[TKey, TValue]) ToPointerArray() []*TValue {
 	s.rLock()
+	defer s.rUnlock()
 
 	result := make([]*TValue, len(s.values))
 	i := 0
@@ -108,7 +109,6 @@ func (s *SafeMap[TKey, TValue]) ToPointerArray() []*TValue {
 		result[i] = v
 		i++
 	}
-	s.rUnlock()
 
 	return result
 }
@@ -152,16 +152,17 @@ func (s *SafeMap[TKey, TValue]) Delete(key TKey) {
 
 func (s *SafeMap[TKey, TValue]) Get(key TKey) *TValue {
 	s.rLock()
+	defer s.rUnlock()
+
 	value := s.values[key]
-	s.rUnlock()
 	return value
 }
 
 func (s *SafeMap[TKey, TValue]) GetValue(key TKey) TValue {
 	s.rLock()
-	value := s.values[key]
-	s.rUnlock()
+	defer s.rUnlock()
 
+	value := s.values[key]
 	if value == nil {
 		return s._default
 	}
@@ -193,18 +194,18 @@ func (s *SafeMap[TKey, TValue]) Set(key TKey, value any) {
 // Clear will clear the whole map.
 func (s *SafeMap[TKey, TValue]) Clear() {
 	s.lock()
+	defer s.unlock()
+
 	if len(s.values) != 0 {
 		s.values = make(map[TKey]*TValue)
 	}
-	s.unlock()
 }
 
 func (s *SafeMap[TKey, TValue]) Length() int {
 	s.rLock()
-	l := len(s.values)
-	s.rUnlock()
+	defer s.rUnlock()
 
-	return l
+	return len(s.values)
 }
 
 func (s *SafeMap[TKey, TValue]) IsEmpty() bool {
@@ -212,19 +213,20 @@ func (s *SafeMap[TKey, TValue]) IsEmpty() bool {
 }
 
 func (s *SafeMap[TKey, TValue]) ToNormalMap() map[TKey]TValue {
-	m := make(map[TKey]TValue)
+	normalMap := make(map[TKey]TValue)
 	s.rLock()
+	defer s.rUnlock()
+
 	for k, v := range s.values {
 		if v == nil {
-			m[k] = s._default
+			normalMap[k] = s._default
 			continue
 		}
 
-		m[k] = *v
+		normalMap[k] = *v
 	}
-	s.rUnlock()
 
-	return m
+	return normalMap
 }
 
 func (s *SafeMap[TKey, TValue]) IsThreadSafe() bool {
@@ -249,13 +251,15 @@ func (s *SafeMap[TKey, TValue]) IsDisabled() bool {
 // values, but will still be able to delete/read values.
 func (s *SafeMap[TKey, TValue]) Disable() {
 	s.lock()
+	defer s.unlock()
+
 	s._disabled = true
-	s.unlock()
 }
 
 // Enable will enable this map, meaning that it will be able to add new values.
 func (s *SafeMap[TKey, TValue]) Enable() {
 	s.lock()
+	defer s.unlock()
+
 	s._disabled = false
-	s.unlock()
 }

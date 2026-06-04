@@ -94,13 +94,12 @@ func (s *SafeEMap[TKey, TValue]) Add(key TKey, value *TValue) {
 func (s *SafeEMap[TKey, TValue]) delete(key TKey, useLock bool) {
 	if useLock {
 		s.lock()
+		defer s.unlock()
 	}
+
 	// get index in key slice for key
 	index, exists := s.sliceKeyIndex[key]
 	if !exists {
-		if useLock {
-			s.unlock()
-		}
 		// item does not exist
 		return
 	}
@@ -121,9 +120,6 @@ func (s *SafeEMap[TKey, TValue]) delete(key TKey, useLock bool) {
 	}
 
 	delete(s.values, key)
-	if useLock {
-		s.unlock()
-	}
 }
 
 func (s *SafeEMap[TKey, TValue]) Delete(key TKey) {
