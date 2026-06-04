@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/ALiwoto/ssg/ssg/caseUtils"
 	"github.com/ALiwoto/ssg/ssg/internal"
 )
 
@@ -365,16 +366,16 @@ func parseFinalConfig(v any, section string, configValue *ConfigParser) error {
 
 			key := fByName.Tag.Get("key")
 			if key == "" {
-				key = toSnakeCase(fByName.Name)
+				key = caseUtils.ToSnakeCase(fByName.Name)
 			}
 
-			fType := strings.ToLower(fByName.Tag.Get("type"))
+			// fType := strings.ToLower(fByName.Tag.Get("type"))
 			envKey := fByName.Tag.Get("env")
-			isRune := fType == "rune" || fType == "[]rune"
+			// isRune := fType == "rune" || fType == "[]rune"
 
 			valueToSet, err := configValue.getArrayValueToSet(
 				currentSection, key, envKey,
-				myKind, isRune,
+				myKind,
 			)
 			if err != nil || valueToSet.IsNil() || !valueToSet.IsValid() {
 				continue
@@ -447,114 +448,6 @@ func getKind(value string) reflect.Kind {
 	}
 
 	return reflect.Invalid
-}
-
-func SetDefaultValue(field reflect.Value, kind reflect.Kind) {
-	switch kind {
-	case reflect.Int:
-		var v int
-		field.Set(reflect.ValueOf(&v))
-	case reflect.Int8:
-		var v int8
-		field.Set(reflect.ValueOf(&v))
-	case reflect.Int16:
-		var v int16
-		field.Set(reflect.ValueOf(&v))
-	case reflect.Int32:
-		var v int32
-		field.Set(reflect.ValueOf(&v))
-	case reflect.Int64:
-		var v int64
-		field.Set(reflect.ValueOf(&v))
-	case reflect.Uint:
-		var v uint
-		field.Set(reflect.ValueOf(&v))
-	case reflect.Uint8:
-		var v uint8
-		field.Set(reflect.ValueOf(&v))
-	case reflect.Uint16:
-		var v uint16
-		field.Set(reflect.ValueOf(&v))
-	case reflect.Uint32:
-		var v uint32
-		field.Set(reflect.ValueOf(&v))
-	case reflect.Uint64:
-		var v uint64
-		field.Set(reflect.ValueOf(&v))
-	case reflect.Float32:
-		var v float32
-		field.Set(reflect.ValueOf(&v))
-	case reflect.Float64:
-		var v float64
-		field.Set(reflect.ValueOf(&v))
-	case reflect.Complex64:
-		var v complex64
-		field.Set(reflect.ValueOf(&v))
-	case reflect.Complex128:
-		var v complex128
-		field.Set(reflect.ValueOf(&v))
-	case reflect.Bool:
-		var v bool
-		field.Set(reflect.ValueOf(&v))
-	case reflect.String:
-		var v string
-		field.Set(reflect.ValueOf(&v))
-	}
-}
-
-func GetDefaultValue(kind reflect.Kind) any {
-	switch kind {
-	case reflect.Int:
-		var v int
-		return v
-	case reflect.Int8:
-		var v int8
-		return v
-	case reflect.Int16:
-		var v int16
-		return v
-	case reflect.Int32:
-		var v int32
-		return v
-	case reflect.Int64:
-		var v int64
-		return v
-	case reflect.Uint:
-		var v uint
-		return v
-	case reflect.Uint8:
-		var v uint8
-		return v
-	case reflect.Uint16:
-		var v uint16
-		return v
-	case reflect.Uint32:
-		var v uint32
-		return v
-	case reflect.Uint64:
-		var v uint64
-		return v
-	case reflect.Float32:
-		var v float32
-		return v
-	case reflect.Float64:
-		var v float64
-		return v
-	case reflect.Complex64:
-		var v complex64
-		return v
-	case reflect.Complex128:
-		var v complex128
-		return v
-	case reflect.Bool:
-		var v bool
-		return v
-	case reflect.String:
-		var v string
-		return v
-	}
-
-	return nil
 }
 
 func getNoSectionError(section string) error {
@@ -658,185 +551,6 @@ func parseToStringArray(value string) []string {
 	}
 
 	return arr
-}
-
-func parseToIntArray(value string) []int {
-	arr := internal.SplitN(value, -1, ",", " ", "[", "]")
-	var myInts []int
-
-	for i := 0; i < len(arr); i++ {
-		arr[i] = strings.TrimSpace(arr[i])
-		theValue, err := strconv.ParseInt(arr[i], 10, 64)
-		if err != nil {
-			continue
-		}
-
-		myInts = append(myInts, int(theValue))
-	}
-
-	return myInts
-}
-
-func parseToInt8Array(value string) []int8 {
-	arr := internal.SplitN(value, -1, ",", " ", "[", "]")
-	var myInts []int8
-
-	for i := 0; i < len(arr); i++ {
-		arr[i] = strings.TrimSpace(arr[i])
-		theValue, err := strconv.ParseInt(arr[i], 10, 64)
-		if err != nil {
-			continue
-		}
-
-		myInts = append(myInts, int8(theValue))
-	}
-
-	return myInts
-}
-
-func parseToInt16Array(value string) []int16 {
-	arr := internal.SplitN(value, -1, ",", " ", "[", "]")
-	var myInts []int16
-
-	for i := 0; i < len(arr); i++ {
-		arr[i] = strings.TrimSpace(arr[i])
-		theValue, err := strconv.ParseInt(arr[i], 10, 64)
-		if err != nil {
-			continue
-		}
-
-		myInts = append(myInts, int16(theValue))
-	}
-
-	return myInts
-}
-
-func parseToInt32Array(value string, isRune bool) []int32 {
-	arr := internal.SplitN(value, -1, ",", " ", "[", "]")
-	var myInts []int32
-
-	for i := 0; i < len(arr); i++ {
-		arr[i] = strings.TrimSpace(arr[i])
-		if arr[i] == "" {
-			continue
-		}
-
-		if isRune {
-			myInts = append(myInts, int32([]rune(arr[i])[0]))
-			continue
-		}
-
-		theValue, err := strconv.ParseInt(arr[i], 10, 64)
-		if err != nil {
-			continue
-		}
-
-		myInts = append(myInts, int32(theValue))
-	}
-
-	return myInts
-}
-
-func parseToInt64Array(value string) []int64 {
-	arr := internal.SplitN(value, -1, ",", " ", "[", "]")
-	var myInts []int64
-
-	for i := 0; i < len(arr); i++ {
-		arr[i] = strings.TrimSpace(arr[i])
-		theValue, err := strconv.ParseInt(arr[i], 10, 64)
-		if err != nil {
-			continue
-		}
-
-		myInts = append(myInts, int64(theValue))
-	}
-
-	return myInts
-}
-
-func parseToUintArray(value string) []uint {
-	arr := internal.SplitN(value, -1, ",", " ", "[", "]")
-	var myInts []uint
-
-	for i := 0; i < len(arr); i++ {
-		arr[i] = strings.TrimSpace(arr[i])
-		theValue, err := strconv.ParseInt(arr[i], 10, 64)
-		if err != nil {
-			continue
-		}
-
-		myInts = append(myInts, uint(theValue))
-	}
-
-	return myInts
-}
-
-func parseToUint8Array(value string) []uint8 {
-	arr := internal.SplitN(value, -1, ",", " ", "[", "]")
-	var myInts []uint8
-
-	for i := 0; i < len(arr); i++ {
-		arr[i] = strings.TrimSpace(arr[i])
-		theValue, err := strconv.ParseInt(arr[i], 10, 64)
-		if err != nil {
-			continue
-		}
-
-		myInts = append(myInts, uint8(theValue))
-	}
-
-	return myInts
-}
-
-func parseToUint16Array(value string) []uint16 {
-	arr := internal.SplitN(value, -1, ",", " ", "[", "]")
-	var myInts []uint16
-
-	for i := 0; i < len(arr); i++ {
-		arr[i] = strings.TrimSpace(arr[i])
-		theValue, err := strconv.ParseInt(arr[i], 10, 64)
-		if err != nil {
-			continue
-		}
-
-		myInts = append(myInts, uint16(theValue))
-	}
-
-	return myInts
-}
-
-func parseToUint32Array(value string) []uint32 {
-	arr := internal.SplitN(value, -1, ",", " ", "[", "]")
-	var myInts []uint32
-
-	for i := 0; i < len(arr); i++ {
-		arr[i] = strings.TrimSpace(arr[i])
-		theValue, err := strconv.ParseInt(arr[i], 10, 64)
-		if err != nil {
-			continue
-		}
-
-		myInts = append(myInts, uint32(theValue))
-	}
-
-	return myInts
-}
-
-func parseToUint64Array(value string) []uint64 {
-	arr := internal.SplitN(value, -1, ",", " ", "[", "]")
-	var myInts []uint64
-
-	for i := 0; i < len(arr); i++ {
-		arr[i] = strings.TrimSpace(arr[i])
-		theValue, err := strconv.ParseInt(arr[i], 10, 64)
-		if err != nil {
-			continue
-		}
-
-		myInts = append(myInts, uint64(theValue))
-	}
-
-	return myInts
 }
 
 func parseToFloat64Array(value string) []float64 {

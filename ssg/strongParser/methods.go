@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/ALiwoto/ssg/ssg/rangeValues"
 )
 
 func (p *ConfigParser) isDefaultSection(section string) bool {
@@ -259,10 +261,10 @@ func (p *ConfigParser) GetStringSlice(section, option string) ([]string, error) 
 }
 
 // getArrayValueToSet returns array value to set.
-// s is section; o is option; k is kind.
 func (p *ConfigParser) getArrayValueToSet(
 	section, key, envKey string,
-	k reflect.Kind, isRune bool) (rValue, error) {
+	kind reflect.Kind,
+) (rValue, error) {
 	result, err := p.Get(section, key)
 	if err != nil || result == "" {
 		// second try: read from environment variable
@@ -288,29 +290,29 @@ func (p *ConfigParser) getArrayValueToSet(
 		return invalidReflectValue, errors.New("getArrayValueToSet: no value found")
 	}
 
-	switch k {
+	switch kind {
 	case reflect.String:
 		return reflect.ValueOf(parseToStringArray(result)), nil
 	case reflect.Int:
-		return reflect.ValueOf(parseToIntArray(result)), nil
+		return reflect.ValueOf(rangeValues.ParseIntArray[int](result)), nil
 	case reflect.Int8:
-		return reflect.ValueOf(parseToInt8Array(result)), nil
+		return reflect.ValueOf(rangeValues.ParseIntArray[int8](result)), nil
 	case reflect.Int16:
-		return reflect.ValueOf(parseToInt16Array(result)), nil
+		return reflect.ValueOf(rangeValues.ParseIntArray[int16](result)), nil
 	case reflect.Int32:
-		return reflect.ValueOf(parseToInt32Array(result, isRune)), nil
+		return reflect.ValueOf(rangeValues.ParseIntArray[int32](result)), nil
 	case reflect.Int64:
-		return reflect.ValueOf(parseToInt64Array(result)), nil
+		return reflect.ValueOf(rangeValues.ParseIntArray[int64](result)), nil
 	case reflect.Uint:
-		return reflect.ValueOf(parseToUintArray(result)), nil
+		return reflect.ValueOf(rangeValues.ParseIntArray[uint](result)), nil
 	case reflect.Uint8:
-		return reflect.ValueOf(parseToUint8Array(result)), nil
+		return reflect.ValueOf(rangeValues.ParseIntArray[uint8](result)), nil
 	case reflect.Uint16:
-		return reflect.ValueOf(parseToUint16Array(result)), nil
+		return reflect.ValueOf(rangeValues.ParseIntArray[uint16](result)), nil
 	case reflect.Uint32:
-		return reflect.ValueOf(parseToUint32Array(result)), nil
+		return reflect.ValueOf(rangeValues.ParseIntArray[uint32](result)), nil
 	case reflect.Uint64:
-		return reflect.ValueOf(parseToUint64Array(result)), nil
+		return reflect.ValueOf(rangeValues.ParseIntArray[uint64](result)), nil
 	case reflect.Float32:
 		return reflect.ValueOf(parseToFloat32Array(result)), nil
 	case reflect.Float64:
@@ -323,7 +325,7 @@ func (p *ConfigParser) getArrayValueToSet(
 		return reflect.ValueOf(parseToBoolArray(result)), nil
 	}
 
-	return invalidReflectValue, fmt.Errorf("unsupported kind: %s", k.String())
+	return invalidReflectValue, fmt.Errorf("unsupported kind: %s", kind.String())
 }
 
 func (p *ConfigParser) GetIntSlice(section, option string) ([]int64, error) {
@@ -332,7 +334,7 @@ func (p *ConfigParser) GetIntSlice(section, option string) ([]int64, error) {
 		return nil, err
 	}
 
-	return parseToInt64Array(result), nil
+	return rangeValues.ParseIntArray[int64](result), nil
 }
 
 func (p *ConfigParser) HasOption(section, option string) (bool, error) {

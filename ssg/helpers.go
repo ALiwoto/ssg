@@ -15,6 +15,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/ALiwoto/ssg/ssg/caseUtils"
 	"github.com/ALiwoto/ssg/ssg/internal"
 	"github.com/ALiwoto/ssg/ssg/rangeValues"
 	"github.com/ALiwoto/ssg/ssg/shellUtils"
@@ -364,8 +365,8 @@ func ToValidIntegerString(value string) string {
 }
 
 // Title function will convert the given string to title case.
-func Title(value string) string {
-	return _titleCaser.String(value)
+func Title[T ~string](value T) string {
+	return caseUtils.ToTitle(string(value))
 }
 
 // ToInt64 converts a specified string value to int64.

@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/ALiwoto/ssg/ssg/caseUtils"
 )
 
 // extractFieldValue
@@ -27,7 +29,7 @@ func extractFieldValue[T comparable](
 	key := fByName.Tag.Get("key")
 	if key == "" {
 		// convert the field name to snake case
-		key = toSnakeCase(fByName.Name)
+		key = caseUtils.ToSnakeCase(fByName.Name)
 	}
 
 	fType := strings.ToLower(fByName.Tag.Get("type"))
@@ -68,18 +70,6 @@ func extractFieldValue[T comparable](
 
 	resultValue, _ = converter(fType, fByName.Tag.Get("default"))
 	return resultValue
-}
-
-func toSnakeCase(s string) string {
-	var result []rune
-	for i, c := range s {
-		if i > 0 && c >= 'A' && c <= 'Z' {
-			result = append(result, '_')
-		}
-		// lower-case the c and append
-		result = append(result, c|0x20)
-	}
-	return string(result)
 }
 
 func extractStr(fType, s string) (string, error) {
