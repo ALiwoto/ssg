@@ -7,6 +7,7 @@ package ssg
 
 import (
 	"math/big"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -367,6 +368,29 @@ func ToValidIntegerString(value string) string {
 // Title function will convert the given string to title case.
 func Title[T ~string](value T) string {
 	return caseUtils.ToTitle(string(value))
+}
+
+// ClonePointerSlice clones a slice of pointers to any type T
+// and returns a new slice with copies of the original elements.
+// NOTE: this is a shallow clone of depth 1.
+func ClonePointerSlice[T any](items []*T) []*T {
+	result := make([]*T, len(items))
+	for index, item := range items {
+		if item == nil {
+			continue
+		}
+		itemCopy := *item
+		result[index] = &itemCopy
+	}
+	return result
+}
+
+// RandomInt64Inclusive generates a random int64 number between minValue and maxValue (inclusive).
+func RandomInt64Inclusive(minValue, maxValue int64) int64 {
+	if maxValue <= minValue {
+		return minValue
+	}
+	return minValue + rand.Int63n(maxValue-minValue+1)
 }
 
 // ToInt64 converts a specified string value to int64.
