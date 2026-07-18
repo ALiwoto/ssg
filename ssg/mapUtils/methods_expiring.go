@@ -1,10 +1,39 @@
-package ssg
+package mapUtils
 
 import (
 	"math/rand"
 	"sync"
 	"time"
+
+	"github.com/ALiwoto/ssg/ssg/listUtils"
 )
+
+func (e *ExpiringValue[T]) SetTime(t time.Time) {
+	e.timestamp = t
+}
+
+func (e *ExpiringValue[T]) GetTime() time.Time {
+	return e.timestamp
+}
+
+func (e *ExpiringValue[T]) Reset() {
+	e.SetTime(time.Now())
+}
+
+func (e *ExpiringValue[T]) IsExpired(duration time.Duration) bool {
+	return time.Since(e.timestamp) > duration
+}
+
+func (e *ExpiringValue[T]) SetValue(value T) {
+	e.value = value
+}
+
+func (e *ExpiringValue[T]) GetValue() T {
+	e.Reset()
+	return e.value
+}
+
+//---------------------------------------------------------
 
 func (s *SafeEMap[TKey, TValue]) lock() {
 	s.mut.Lock()
@@ -24,8 +53,9 @@ func (s *SafeEMap[TKey, TValue]) rUnlock() {
 
 func (s *SafeEMap[TKey, TValue]) Exists(key TKey) bool {
 	s.rLock()
+	defer s.rUnlock()
+
 	_, b := s.values[key]
-	s.rUnlock()
 	return b
 }
 
@@ -39,9 +69,11 @@ func (s *SafeEMap[TKey, TValue]) AddList(keyGetter func(*TValue) TKey, elements 
 	}
 }
 
-func (s *SafeEMap[TKey, TValue]) ToList() GenericList[*TValue] {
-	list := GetEmptyList[*TValue]()
+func (s *SafeEMap[TKey, TValue]) ToList() listUtils.GenericList[*TValue] {
+	list := listUtils.GetEmptyList[*TValue]()
 	s.rLock()
+	defer s.rUnlock()
+
 	for _, v := range s.values {
 		if v == nil {
 			// most likely impossible, this checker is here just for more safety.
@@ -50,7 +82,6 @@ func (s *SafeEMap[TKey, TValue]) ToList() GenericList[*TValue] {
 
 		list.Add(v.GetValue())
 	}
-	s.rUnlock()
 
 	return list
 }
@@ -69,7 +100,7 @@ func (s *SafeEMap[TKey, TValue]) Add(key TKey, value *TValue) {
 	s.lock()
 	defer s.unlock()
 
-	if s._disabled {
+	if s.disabled {
 		return
 	}
 
@@ -113,7 +144,7 @@ func (s *SafeEMap[TKey, TValue]) delete(key TKey, useLock bool) {
 	s.keys = s.keys[:len(s.keys)-1]
 
 	// we just swapped the last element to another position.
-	// so we need to update it's index (if it was not in last position)
+	// so we need to update its index (if it was not in last position)
 	if !wasLastIndex {
 		otherKey := s.keys[index]
 		s.sliceKeyIndex[otherKey] = index
@@ -131,6 +162,7 @@ func (s *SafeEMap[TKey, TValue]) ForEach(fn func(TKey, *TValue) ForEachOperation
 		return
 	}
 	s.lock()
+	defer s.unlock()
 
 	var tmpValue *TValue
 
@@ -154,55 +186,56 @@ myFor:
 			break myFor
 		}
 	}
-
-	s.unlock()
 }
 
 func (s *SafeEMap[TKey, TValue]) GetRandom() *TValue {
-	if s.IsEmpty() {
+	s.rLock()
+	defer s.rUnlock()
+
+	if len(s.keys) == 0 || len(s.values) == 0 {
 		return nil
 	}
 
-	s.rLock()
 	randomIndex := rand.Intn(len(s.keys))
 	key := s.keys[randomIndex]
 	value := s.values[key]
-	s.rUnlock()
 
 	return value.GetValue()
 }
 
 func (s *SafeEMap[TKey, TValue]) GetRandomValue() TValue {
-	if s.IsEmpty() {
-		return s._default
+	s.rLock()
+	defer s.rUnlock()
+
+	if len(s.keys) == 0 || len(s.values) == 0 {
+		return s.defaultValue
 	}
 
-	s.rLock()
 	randomIndex := rand.Intn(len(s.keys))
 	key := s.keys[randomIndex]
 	value := s.values[key]
-	s.rUnlock()
 
 	return s.getRealValue(value)
 }
 
 func (s *SafeEMap[TKey, TValue]) GetRandomKey() (key TKey, ok bool) {
-	if s.IsEmpty() {
+	s.rLock()
+	defer s.rUnlock()
+
+	if len(s.keys) == 0 {
 		return
 	}
+
 	ok = true
-
-	s.rLock()
 	key = s.keys[rand.Intn(len(s.keys))]
-	s.rUnlock()
-
 	return
 }
 
 func (s *SafeEMap[TKey, TValue]) Get(key TKey) *TValue {
 	s.rLock()
+	defer s.rUnlock()
+
 	value := s.values[key]
-	s.rUnlock()
 	if value == nil {
 		return nil
 	}
@@ -210,16 +243,41 @@ func (s *SafeEMap[TKey, TValue]) Get(key TKey) *TValue {
 	return value.GetValue()
 }
 
+func (s *SafeEMap[TKey, TValue]) GetOrCreate(key TKey, createFn func() *TValue) *TValue {
+	if createFn == nil {
+		return s.Get(key)
+	}
+
+	s.lock()
+	defer s.unlock()
+
+	if s.disabled {
+		return nil
+	}
+
+	value, exists := s.values[key]
+	if exists && !value.IsExpired(s.expiration) {
+		return value.GetValue()
+	}
+
+	newValue := createFn()
+	s.values[key] = NewEValue(newValue)
+	return newValue
+}
+
 func (s *SafeEMap[TKey, TValue]) GetValue(key TKey) TValue {
 	s.rLock()
-	value := s.values[key]
-	s.rUnlock()
+	defer s.rUnlock()
 
+	value := s.values[key]
 	return s.getRealValue(value)
 }
 
 func (s *SafeEMap[TKey, TValue]) SetDefault(value TValue) {
-	s._default = value
+	s.lock()
+	defer s.unlock()
+
+	s.defaultValue = value
 }
 
 // Set function sets the key of type TKey in this safe map to the value.
@@ -242,18 +300,19 @@ func (s *SafeEMap[TKey, TValue]) Set(key TKey, value any) {
 // Clear will clear the whole map.
 func (s *SafeEMap[TKey, TValue]) Clear() {
 	s.lock()
+	defer s.unlock()
+
 	if len(s.values) != 0 {
 		s.values = make(map[TKey]*ExpiringValue[*TValue])
 	}
-	s.unlock()
+
 }
 
 func (s *SafeEMap[TKey, TValue]) Length() int {
 	s.rLock()
-	l := len(s.values)
-	s.rUnlock()
+	defer s.rUnlock()
 
-	return l
+	return len(s.values)
 }
 
 func (s *SafeEMap[TKey, TValue]) IsEmpty() bool {
@@ -262,60 +321,66 @@ func (s *SafeEMap[TKey, TValue]) IsEmpty() bool {
 
 func (s *SafeEMap[TKey, TValue]) ToNormalMap() map[TKey]TValue {
 	m := make(map[TKey]TValue)
+
 	s.rLock()
+	defer s.rUnlock()
+
 	for k, v := range s.values {
 		if v == nil {
-			m[k] = s._default
+			m[k] = s.defaultValue
 			continue
 		}
 
 		realValue := v.GetValue()
 		if realValue == nil {
-			m[k] = s._default
+			m[k] = s.defaultValue
 			continue
 		}
 
 		m[k] = *realValue
 	}
-	s.rUnlock()
 
 	return m
 }
 
 func (s *SafeEMap[TKey, TValue]) ToArray() []TValue {
 	var array []TValue
+
 	s.rLock()
+	defer s.rUnlock()
+
 	for _, v := range s.values {
 		if v == nil {
-			array = append(array, s._default)
+			array = append(array, s.defaultValue)
 			continue
 		}
 
 		realValue := v.GetValue()
 		if realValue == nil {
-			array = append(array, s._default)
+			array = append(array, s.defaultValue)
 			continue
 		}
 
 		array = append(array, *realValue)
 	}
-	s.rUnlock()
 
 	return array
 }
 
 func (s *SafeEMap[TKey, TValue]) ToPointerArray() []*TValue {
 	var array []*TValue
+
 	s.rLock()
+	defer s.rUnlock()
+
 	for _, v := range s.values {
 		if v == nil {
 			// most likely impossible, this checker is here just for more safety.
 			continue
 		}
 
-		array = append(array, v._value)
+		array = append(array, v.value)
 	}
-	s.rUnlock()
 
 	return array
 }
@@ -325,7 +390,10 @@ func (s *SafeEMap[TKey, TValue]) IsThreadSafe() bool {
 }
 
 func (s *SafeEMap[TKey, TValue]) IsValid() bool {
-	return s.Length() > 0 && s.values != nil && s.HasValidTimings()
+	s.rLock()
+	defer s.rUnlock()
+
+	return s != nil && len(s.values) > 0 && s.hasValidTimings()
 }
 
 // IsDisabled returns true if this map is disabled.
@@ -335,25 +403,27 @@ func (s *SafeEMap[TKey, TValue]) IsDisabled() bool {
 	s.rLock()
 	defer s.rUnlock()
 
-	return s._disabled
+	return s.disabled
 }
 
 // Disable will disable this map, meaning that it won't be able to add new
 // values, but will still be able to delete/read values.
 func (s *SafeEMap[TKey, TValue]) Disable() {
 	s.lock()
-	s._disabled = true
-	s.unlock()
+	defer s.unlock()
+
+	s.disabled = true
 }
 
 // Enable will enable this map, meaning that it will be able to add new values.
 func (s *SafeEMap[TKey, TValue]) Enable() {
 	s.lock()
-	s._disabled = false
-	s.unlock()
+	defer s.unlock()
+
+	s.disabled = false
 }
 
-func (s *SafeEMap[TKey, TValue]) HasValidTimings() bool {
+func (s *SafeEMap[TKey, TValue]) hasValidTimings() bool {
 	return s.expiration > time.Microsecond && s.checkInterval > time.Second
 }
 
@@ -366,6 +436,9 @@ func (s *SafeEMap[TKey, TValue]) EnableChecking() {
 	s.checkerMut.Lock()
 	defer s.checkerMut.Unlock()
 
+	s.lock()
+	defer s.unlock()
+
 	if s.checkingEnabled {
 		return
 	}
@@ -375,6 +448,9 @@ func (s *SafeEMap[TKey, TValue]) EnableChecking() {
 }
 
 func (s *SafeEMap[TKey, TValue]) DisableChecking() {
+	s.lock()
+	defer s.unlock()
+
 	if !s.checkingEnabled {
 		return
 	}
@@ -383,33 +459,51 @@ func (s *SafeEMap[TKey, TValue]) DisableChecking() {
 }
 
 func (s *SafeEMap[TKey, TValue]) IsChecking() bool {
+	s.rLock()
+	defer s.rUnlock()
+
 	return s.checkingEnabled
 }
 
 func (s *SafeEMap[TKey, TValue]) SetExpiration(duration time.Duration) {
+	s.lock()
+	defer s.unlock()
+
 	s.expiration = duration
 }
 
 func (s *SafeEMap[TKey, TValue]) SetOnExpired(event func(key TKey, value TValue)) {
+	s.lock()
+	defer s.unlock()
+
 	s.onExpired = event
 }
 
 func (s *SafeEMap[TKey, TValue]) SetOnExpiredPtr(event func(key TKey, value *TValue)) {
+	s.lock()
+	defer s.unlock()
+
 	s.onExpiredPtr = event
 }
 
 func (s *SafeEMap[TKey, TValue]) SetInterval(duration time.Duration) {
+	s.lock()
+	defer s.unlock()
+
 	s.checkInterval = duration
 }
 
+// getRealValue returns the real value of the ExpiringValue struct,
+// or the default value if the ExpiringValue is nil or has a nil value.
+// IMPORTANT: this function does not lock the map, so it should be called within a lock.
 func (s *SafeEMap[TKey, TValue]) getRealValue(eValue *ExpiringValue[*TValue]) TValue {
 	if eValue == nil {
-		return s._default
+		return s.defaultValue
 	}
 
 	realValue := eValue.GetValue()
 	if realValue == nil {
-		return s._default
+		return s.defaultValue
 	}
 
 	return *realValue
@@ -418,12 +512,12 @@ func (s *SafeEMap[TKey, TValue]) getRealValue(eValue *ExpiringValue[*TValue]) TV
 // DoCheck iterates over the map and checks for expired variables and removes them.
 // if the `onExpired` member of the map is set, it will call them.
 func (s *SafeEMap[TKey, TValue]) DoCheck() {
-	if !s.IsValid() {
-		return
-	}
-
 	s.lock()
 	defer s.unlock()
+
+	if len(s.values) == 0 {
+		return
+	}
 
 	for i, current := range s.values {
 		if current == nil || current.IsExpired(s.expiration) {
@@ -433,28 +527,48 @@ func (s *SafeEMap[TKey, TValue]) DoCheck() {
 			}
 
 			if s.onExpiredPtr != nil {
-				s.onExpiredPtr(i, current.GetValue())
+				go s.onExpiredPtr(i, current.GetValue())
 			}
 		}
 	}
 }
 
+func (s *SafeEMap[TKey, TValue]) getCheckStatus() checkAction {
+	if s == nil {
+		return checkActionReturn
+	}
+
+	s.rLock()
+	defer s.rUnlock()
+
+	if !s.checkingEnabled {
+		return checkActionReturn
+	}
+
+	if len(s.values) == 0 {
+		return checkActionContinue
+	}
+
+	return checkActionNormal
+}
+
+func (s *SafeEMap[TKey, TValue]) getCheckInterval() time.Duration {
+	s.rLock()
+	defer s.rUnlock()
+
+	return s.checkInterval
+}
+
 func (s *SafeEMap[TKey, TValue]) checkLoop() {
 	for {
-		time.Sleep(s.checkInterval)
+		time.Sleep(max(s.getCheckInterval(), time.Microsecond))
 
-		if !s.checkingEnabled {
+		status := s.getCheckStatus()
+		if status == checkActionReturn {
+			s.DisableChecking()
 			return
-		}
-
-		if !s.IsValid() {
-			if s.values != nil && s.Length() == 0 {
-				// don't break out if the map is actually valid but it's empty...
-				continue
-			}
-
-			s.checkingEnabled = false
-			return
+		} else if status == checkActionContinue {
+			continue
 		}
 
 		s.DoCheck()

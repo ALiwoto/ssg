@@ -8,96 +8,34 @@ package ssg
 import (
 	"hash"
 	"sync"
-	"time"
 
+	"github.com/ALiwoto/ssg/ssg/commonUtils"
+	"github.com/ALiwoto/ssg/ssg/listUtils"
+	"github.com/ALiwoto/ssg/ssg/mapUtils"
 	"github.com/ALiwoto/ssg/ssg/rangeValues"
 	"github.com/ALiwoto/ssg/ssg/shellUtils"
 )
 
-type ExpiringValue[T any] struct {
-	_value T
-	_t     time.Time
-}
+type (
+	ExpiringValue[T any]                     = mapUtils.ExpiringValue[T]
+	ForEachOperation                         = mapUtils.ForEachOperation
+	AdvancedMap[TKey comparable, TValue any] = mapUtils.AdvancedMap[TKey, TValue]
+	SafeEMap[TKey comparable, TValue any]    = mapUtils.SafeEMap[TKey, TValue]
+	SafeMap[TKey comparable, TValue any]     = mapUtils.SafeMap[TKey, TValue]
+)
+
+type (
+	ListW[T comparable] = listUtils.ListW[T]
+)
 
 // the StrongString used in the program for additional usage.
 type StrongString struct {
 	_value []rune
 }
 
-type ListW[T comparable] struct {
-	_values []T
-}
-
-// AdvancedMap is a safe map of type TIndex to pointers of type TValue with
-// extra advanced features that you can't find in safe-map types.
-// obviously, because of its extra features, it's slightly slower than other
-// normal safe-map types.
-// this map is completely thread safe and is using internal lock when
-// getting and setting variables.
-type AdvancedMap[TKey comparable, TValue any] struct {
-	mut    *sync.Mutex
-	values map[TKey]*TValue
-	// keys field is a slice of the map keys used in the map above. We put them in a slice
-	// so that we can get a random key by choosing a random index.
-	keys []TKey
-	// We store the index of each key, so that when we remove an item, we can
-	// quickly remove it from the slice above.
-	sliceKeyIndex map[TKey]int
-	// _default field is the default value this map has to return in GetValue
-	// method when the key is not found.
-	_default TValue
-}
-
-// SafeMap is a safe map of type TIndex to pointers of type TValue.
-// this map is completely thread safe and is using internal lock when
-// getting and setting variables.
-type SafeMap[TKey comparable, TValue any] struct {
-	mut    *sync.RWMutex
-	values map[TKey]*TValue
-
-	// _default field is the default value this map has to return in GetValue
-	// method when the key is not found.
-	_default TValue
-
-	// _disabled determines whether the map is disabled or not.
-	_disabled bool
-}
-
 type NumIdGenerator[T rangeValues.Integer] struct {
 	current T
 	mut     *sync.Mutex
-}
-
-// SafeEMap is a safe map of type TIndex to pointers of type TValue.
-// this map is completely thread safe and is using internal lock when
-// getting and setting variables.
-// the difference of SafeEMap and SafeMap is that SafeEMap is using a checker loop
-// for removing the expired values from itself.
-type SafeEMap[TKey comparable, TValue any] struct {
-	checkingEnabled bool
-	checkInterval   time.Duration
-	expiration      time.Duration
-	mut             *sync.RWMutex
-	checkerMut      *sync.Mutex
-	values          map[TKey]*ExpiringValue[*TValue]
-	// keys field is a slice of the map keys used in the map above. We put them in a slice
-	// so that we can get a random key by choosing a random index.
-	keys []TKey
-	// We store the index of each key, so that when we remove an item, we can
-	// quickly remove it from the slice above.
-	sliceKeyIndex map[TKey]int
-	_default      TValue
-
-	// _disabled determines whether the map is disabled or not.
-	_disabled bool
-
-	// onExpired is the event function that will be called when a value with the certain
-	// key on the map is expired. this event function will be called in a new goroutine.
-	onExpired func(key TKey, value TValue)
-
-	// onExpiredPtr is the event function that will be called when a value with the certain
-	// key on the map is expired. this event function will NOT be called in a new goroutine.
-	onExpiredPtr func(key TKey, value *TValue)
 }
 
 // EndpointResponse is the generalized form of a response from a HTTP API.
@@ -136,10 +74,6 @@ type Int8Container = rangeValues.IntContainer[int8]
 type UInt8Container = rangeValues.IntContainer[uint8]
 
 type ExecuteCommandResult = shellUtils.ExecuteCommandResult
-
-// ForEachOperation describes an operation that has to be returned
-// from a ForEach method.
-type ForEachOperation int
 
 //type safeList[T any] #TODO: implement safe-list
 
@@ -196,8 +130,8 @@ type MetaDataProvider interface {
 }
 
 type GenericList[T comparable] interface {
-	BasicObject
-	Validator
+	listUtils.ListLike
+	commonUtils.Validator
 
 	Find(element T) int
 	Count(element T) int
@@ -235,13 +169,8 @@ type BitsBlocks interface {
 	GetBitsSize() int
 }
 
-type BasicObject interface {
-	IsEmpty() bool
-	Length() int
-}
-
 type QString interface {
-	BasicObject
+	listUtils.ListLike
 
 	GetValue() string
 	GetIndexV(int) rune
@@ -272,10 +201,6 @@ type QString interface {
 type Serializer interface {
 	Serialize() ([]byte, error)
 	StrSerialize() string
-}
-
-type Validator interface {
-	IsValid() bool
 }
 
 type SignatureContainer interface {

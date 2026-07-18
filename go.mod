@@ -5,6 +5,6 @@
 
 module github.com/ALiwoto/ssg
 
-go 1.18
+go 1.26
 
 require golang.org/x/text v0.15.0

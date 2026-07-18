@@ -18,6 +18,8 @@ import (
 
 	"github.com/ALiwoto/ssg/ssg/caseUtils"
 	"github.com/ALiwoto/ssg/ssg/internal"
+	"github.com/ALiwoto/ssg/ssg/listUtils"
+	"github.com/ALiwoto/ssg/ssg/mapUtils"
 	"github.com/ALiwoto/ssg/ssg/rangeValues"
 	"github.com/ALiwoto/ssg/ssg/shellUtils"
 	"github.com/ALiwoto/ssg/ssg/strongParser"
@@ -466,42 +468,24 @@ func RecoverPanic() {
 	_ = recover()
 }
 
-func GetEmptyList[T comparable]() GenericList[T] {
-	return &ListW[T]{}
+func GetEmptyList[T comparable]() listUtils.GenericList[T] {
+	return listUtils.GetEmptyList[T]()
 }
 
 func GetListFromArray[T comparable](array []T) GenericList[T] {
-	return &ListW[T]{array}
-}
-
-func NewEValue[T any](value T) *ExpiringValue[T] {
-	return &ExpiringValue[T]{
-		_value: value,
-		_t:     time.Now(),
-	}
+	return listUtils.GetListFromArray(array)
 }
 
 func NewSafeMap[TKey comparable, TValue any]() *SafeMap[TKey, TValue] {
-	return &SafeMap[TKey, TValue]{
-		mut:    &sync.RWMutex{},
-		values: make(map[TKey]*TValue),
-	}
-}
-
-func NewAdvancedMap[TKey comparable, TValue any]() *AdvancedMap[TKey, TValue] {
-	return &AdvancedMap[TKey, TValue]{
-		mut:           &sync.Mutex{},
-		values:        make(map[TKey]*TValue),
-		sliceKeyIndex: make(map[TKey]int),
-	}
+	return mapUtils.NewSafeMap[TKey, TValue]()
 }
 
 func NewSafeEMap[TKey comparable, TValue any]() *SafeEMap[TKey, TValue] {
-	return &SafeEMap[TKey, TValue]{
-		mut:           &sync.RWMutex{},
-		values:        make(map[TKey]*ExpiringValue[*TValue]),
-		sliceKeyIndex: make(map[TKey]int),
-	}
+	return mapUtils.NewSafeEMap[TKey, TValue]()
+}
+
+func NewAdvancedMap[TKey comparable, TValue any]() *AdvancedMap[TKey, TValue] {
+	return mapUtils.NewAdvancedMap[TKey, TValue]()
 }
 
 // NewNumIdGenerator initializes an empty NumIdGenerator and returns it.

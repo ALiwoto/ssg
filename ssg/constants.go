@@ -15,22 +15,6 @@ const (
 	FLAG_PREFIX     = "--"
 )
 
-const (
-	// ForEachOperationBreak will just continue the loop without doing anything.
-	ForEachOperationContinue = 0
-
-	// ForEachOperationBreak will just break the loop without doing anything.
-	ForEachOperationBreak = 1
-
-	// ForEachOperationBreak will just remove the current item from the list
-	// and continue the loop.
-	ForEachOperationRemove = 2
-
-	// ForEachOperationBreak will remove the current item from the list
-	// and break the loop.
-	ForEachOperationRemoveBreak = 3
-)
-
 // the base constant values.
 const (
 	BaseIndex      = 0  // number 0
@@ -59,16 +43,9 @@ const (
 	CHAR_STR        = '"' // the string sign : '"'
 )
 
-// router config values
 const (
-	APP_PORT        = "PORT"
-	GET_SLASH       = "/"
-	HTTP_ADDRESS    = ":"
-	FORMAT_VALUE    = "%v"
-	SPACE_VALUE     = " "
 	LineEscape      = "\n"
 	R_ESCAPE        = "\r"
-	SEMICOLON       = ";"
 	Coma            = ","
 	ParaOpen        = "("
 	ParaClose       = ")"

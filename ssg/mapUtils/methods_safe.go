@@ -1,4 +1,6 @@
-package ssg
+package mapUtils
+
+import "github.com/ALiwoto/ssg/ssg/listUtils"
 
 func (s *SafeMap[TKey, TValue]) lock() {
 	s.mut.Lock()
@@ -18,8 +20,9 @@ func (s *SafeMap[TKey, TValue]) rUnlock() {
 
 func (s *SafeMap[TKey, TValue]) Exists(key TKey) bool {
 	s.rLock()
+	defer s.rUnlock()
 	_, b := s.values[key]
-	s.rUnlock()
+
 	return b
 }
 
@@ -27,10 +30,35 @@ func (s *SafeMap[TKey, TValue]) Add(key TKey, value *TValue) {
 	s.lock()
 	defer s.unlock()
 
-	if s._disabled {
+	if s.disabled {
 		return
 	}
 	s.values[key] = value
+}
+
+// GetOrCreate returns the value of the key if it exists, otherwise it creates a new
+// value using the provided createFn function and adds it to the map.
+// If the map is disabled, it will return nil.
+func (s *SafeMap[TKey, TValue]) GetOrCreate(key TKey, createFn func() *TValue) *TValue {
+	if createFn == nil {
+		return s.Get(key)
+	}
+
+	s.lock()
+	defer s.unlock()
+
+	value, exists := s.values[key]
+	if exists {
+		return value
+	}
+
+	if s.disabled {
+		return nil
+	}
+
+	newValue := createFn()
+	s.values[key] = newValue
+	return newValue
 }
 
 func (s *SafeMap[TKey, TValue]) ForEach(fn func(TKey, *TValue) ForEachOperation) {
@@ -82,7 +110,7 @@ func (s *SafeMap[TKey, TValue]) ToArray() []TValue {
 	i := 0
 	for _, v := range s.values {
 		if v == nil {
-			result[i] = s._default
+			result[i] = s.defaultValues
 			i++
 			continue
 		}
@@ -113,8 +141,8 @@ func (s *SafeMap[TKey, TValue]) ToPointerArray() []*TValue {
 	return result
 }
 
-func (s *SafeMap[TKey, TValue]) ToList() GenericList[*TValue] {
-	return GetListFromArray(s.ToPointerArray())
+func (s *SafeMap[TKey, TValue]) ToList() listUtils.GenericList[*TValue] {
+	return listUtils.GetListFromArray(s.ToPointerArray())
 }
 
 func (s *SafeMap[TKey, TValue]) AddList(keyGetter func(*TValue) TKey, elements ...TValue) {
@@ -164,14 +192,17 @@ func (s *SafeMap[TKey, TValue]) GetValue(key TKey) TValue {
 
 	value := s.values[key]
 	if value == nil {
-		return s._default
+		return s.defaultValues
 	}
 
 	return *value
 }
 
 func (s *SafeMap[TKey, TValue]) SetDefault(value TValue) {
-	s._default = value
+	s.lock()
+	defer s.unlock()
+
+	s.defaultValues = value
 }
 
 // Set function sets the key of type TKey in this safe map to the value.
@@ -219,7 +250,7 @@ func (s *SafeMap[TKey, TValue]) ToNormalMap() map[TKey]TValue {
 
 	for k, v := range s.values {
 		if v == nil {
-			normalMap[k] = s._default
+			normalMap[k] = s.defaultValues
 			continue
 		}
 
@@ -234,7 +265,14 @@ func (s *SafeMap[TKey, TValue]) IsThreadSafe() bool {
 }
 
 func (s *SafeMap[TKey, TValue]) IsValid() bool {
-	return s.Length() > 0
+	if s == nil || s.mut == nil {
+		return false
+	}
+
+	s.rLock()
+	defer s.rUnlock()
+
+	return s.values != nil
 }
 
 // IsDisabled returns true if this map is disabled.
@@ -244,7 +282,7 @@ func (s *SafeMap[TKey, TValue]) IsDisabled() bool {
 	s.rLock()
 	defer s.rUnlock()
 
-	return s._disabled
+	return s.disabled
 }
 
 // Disable will disable this map, meaning that it won't be able to add new
@@ -253,7 +291,7 @@ func (s *SafeMap[TKey, TValue]) Disable() {
 	s.lock()
 	defer s.unlock()
 
-	s._disabled = true
+	s.disabled = true
 }
 
 // Enable will enable this map, meaning that it will be able to add new values.
@@ -261,5 +299,5 @@ func (s *SafeMap[TKey, TValue]) Enable() {
 	s.lock()
 	defer s.unlock()
 
-	s._disabled = false
+	s.disabled = false
 }
