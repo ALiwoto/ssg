@@ -38,7 +38,7 @@ func (s *SafeMap[TKey, TValue]) Add(key TKey, value *TValue) {
 
 // GetOrCreate returns the value of the key if it exists, otherwise it creates a new
 // value using the provided createFn function and adds it to the map.
-// If the map is disabled, it will return nil.
+// If the map is disabled, it won't call createFn and will return nil instead.
 func (s *SafeMap[TKey, TValue]) GetOrCreate(key TKey, createFn func() *TValue) *TValue {
 	if createFn == nil {
 		return s.Get(key)
@@ -285,8 +285,7 @@ func (s *SafeMap[TKey, TValue]) IsDisabled() bool {
 	return s.disabled
 }
 
-// Disable will disable this map, meaning that it won't be able to add new
-// values, but will still be able to delete/read values.
+// Disable will disable this map, turning it into a read-only state.
 func (s *SafeMap[TKey, TValue]) Disable() {
 	s.lock()
 	defer s.unlock()

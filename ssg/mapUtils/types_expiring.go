@@ -6,9 +6,9 @@ import (
 )
 
 // ExpiringValue represents a value of type T that has an expiration time.
-// This struct is NOT thread safe, so it should be used with a thread safe map like SafeEMap.
-// It contains the value and the timestamp when it was created.
+// This struct is thread safe.
 type ExpiringValue[T any] struct {
+	mut       *sync.Mutex
 	value     T
 	timestamp time.Time
 }

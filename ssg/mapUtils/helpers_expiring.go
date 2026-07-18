@@ -7,6 +7,7 @@ import (
 
 func NewEValue[T any](value T) *ExpiringValue[T] {
 	return &ExpiringValue[T]{
+		mut:       &sync.Mutex{},
 		value:     value,
 		timestamp: time.Now(),
 	}

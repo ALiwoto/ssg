@@ -9,10 +9,15 @@ import (
 )
 
 func (e *ExpiringValue[T]) SetTime(t time.Time) {
+	e.mut.Lock()
 	e.timestamp = t
+	e.mut.Unlock()
 }
 
 func (e *ExpiringValue[T]) GetTime() time.Time {
+	e.mut.Lock()
+	defer e.mut.Unlock()
+
 	return e.timestamp
 }
 
@@ -21,15 +26,25 @@ func (e *ExpiringValue[T]) Reset() {
 }
 
 func (e *ExpiringValue[T]) IsExpired(duration time.Duration) bool {
+	e.mut.Lock()
+	defer e.mut.Unlock()
+
 	return time.Since(e.timestamp) > duration
 }
 
 func (e *ExpiringValue[T]) SetValue(value T) {
+	e.mut.Lock()
 	e.value = value
+	e.mut.Unlock()
 }
 
-func (e *ExpiringValue[T]) GetValue() T {
-	e.Reset()
+func (e *ExpiringValue[T]) GetValue(shouldReset bool) T {
+	e.mut.Lock()
+	defer e.mut.Unlock()
+
+	if shouldReset {
+		e.timestamp = time.Now()
+	}
 	return e.value
 }
 
@@ -80,7 +95,7 @@ func (s *SafeEMap[TKey, TValue]) ToList() listUtils.GenericList[*TValue] {
 			continue
 		}
 
-		list.Add(v.GetValue())
+		list.Add(v.GetValue(false))
 	}
 
 	return list
@@ -171,7 +186,7 @@ myFor:
 		if value == nil {
 			tmpValue = nil
 		} else {
-			tmpValue = value.GetValue()
+			tmpValue = value.GetValue(true)
 		}
 
 		switch fn(key, tmpValue) {
@@ -200,7 +215,7 @@ func (s *SafeEMap[TKey, TValue]) GetRandom() *TValue {
 	key := s.keys[randomIndex]
 	value := s.values[key]
 
-	return value.GetValue()
+	return value.GetValue(true)
 }
 
 func (s *SafeEMap[TKey, TValue]) GetRandomValue() TValue {
@@ -215,7 +230,7 @@ func (s *SafeEMap[TKey, TValue]) GetRandomValue() TValue {
 	key := s.keys[randomIndex]
 	value := s.values[key]
 
-	return s.getRealValue(value)
+	return s.getRealValue(value, true)
 }
 
 func (s *SafeEMap[TKey, TValue]) GetRandomKey() (key TKey, ok bool) {
@@ -240,7 +255,7 @@ func (s *SafeEMap[TKey, TValue]) Get(key TKey) *TValue {
 		return nil
 	}
 
-	return value.GetValue()
+	return value.GetValue(true)
 }
 
 func (s *SafeEMap[TKey, TValue]) GetOrCreate(key TKey, createFn func() *TValue) *TValue {
@@ -257,7 +272,7 @@ func (s *SafeEMap[TKey, TValue]) GetOrCreate(key TKey, createFn func() *TValue) 
 
 	value, exists := s.values[key]
 	if exists && !value.IsExpired(s.expiration) {
-		return value.GetValue()
+		return value.GetValue(true)
 	}
 
 	newValue := createFn()
@@ -270,7 +285,7 @@ func (s *SafeEMap[TKey, TValue]) GetValue(key TKey) TValue {
 	defer s.rUnlock()
 
 	value := s.values[key]
-	return s.getRealValue(value)
+	return s.getRealValue(value, true)
 }
 
 func (s *SafeEMap[TKey, TValue]) SetDefault(value TValue) {
@@ -331,7 +346,7 @@ func (s *SafeEMap[TKey, TValue]) ToNormalMap() map[TKey]TValue {
 			continue
 		}
 
-		realValue := v.GetValue()
+		realValue := v.GetValue(false)
 		if realValue == nil {
 			m[k] = s.defaultValue
 			continue
@@ -355,7 +370,7 @@ func (s *SafeEMap[TKey, TValue]) ToArray() []TValue {
 			continue
 		}
 
-		realValue := v.GetValue()
+		realValue := v.GetValue(false)
 		if realValue == nil {
 			array = append(array, s.defaultValue)
 			continue
@@ -379,7 +394,7 @@ func (s *SafeEMap[TKey, TValue]) ToPointerArray() []*TValue {
 			continue
 		}
 
-		array = append(array, v.value)
+		array = append(array, v.GetValue(false))
 	}
 
 	return array
@@ -406,8 +421,7 @@ func (s *SafeEMap[TKey, TValue]) IsDisabled() bool {
 	return s.disabled
 }
 
-// Disable will disable this map, meaning that it won't be able to add new
-// values, but will still be able to delete/read values.
+// Disable will disable this map, turning it into a read-only state.
 func (s *SafeEMap[TKey, TValue]) Disable() {
 	s.lock()
 	defer s.unlock()
@@ -496,12 +510,15 @@ func (s *SafeEMap[TKey, TValue]) SetInterval(duration time.Duration) {
 // getRealValue returns the real value of the ExpiringValue struct,
 // or the default value if the ExpiringValue is nil or has a nil value.
 // IMPORTANT: this function does not lock the map, so it should be called within a lock.
-func (s *SafeEMap[TKey, TValue]) getRealValue(eValue *ExpiringValue[*TValue]) TValue {
+func (s *SafeEMap[TKey, TValue]) getRealValue(
+	eValue *ExpiringValue[*TValue],
+	shouldReset bool,
+) TValue {
 	if eValue == nil {
 		return s.defaultValue
 	}
 
-	realValue := eValue.GetValue()
+	realValue := eValue.GetValue(shouldReset)
 	if realValue == nil {
 		return s.defaultValue
 	}
@@ -523,11 +540,11 @@ func (s *SafeEMap[TKey, TValue]) DoCheck() {
 		if current == nil || current.IsExpired(s.expiration) {
 			delete(s.values, i)
 			if s.onExpired != nil {
-				go s.onExpired(i, s.getRealValue(current))
+				go s.onExpired(i, s.getRealValue(current, false))
 			}
 
 			if s.onExpiredPtr != nil {
-				go s.onExpiredPtr(i, current.GetValue())
+				go s.onExpiredPtr(i, current.GetValue(false))
 			}
 		}
 	}
