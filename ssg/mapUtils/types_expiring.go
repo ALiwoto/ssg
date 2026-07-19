@@ -20,11 +20,12 @@ type ExpiringValue[T any] struct {
 // for removing the expired values from itself.
 type SafeEMap[TKey comparable, TValue any] struct {
 	checkingEnabled bool
-	checkInterval   time.Duration
-	expiration      time.Duration
-	mut             *sync.RWMutex
-	checkerMut      *sync.Mutex
-	values          map[TKey]*ExpiringValue[*TValue]
+	isInCheckLoop   bool
+
+	checkInterval time.Duration
+	expiration    time.Duration
+	mut           *sync.RWMutex
+	values        map[TKey]*ExpiringValue[*TValue]
 	// keys field is a slice of the map keys used in the map above. We put them in a slice
 	// so that we can get a random key by choosing a random index.
 	keys []TKey

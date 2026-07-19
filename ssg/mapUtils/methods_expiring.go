@@ -2,7 +2,6 @@ package mapUtils
 
 import (
 	"math/rand"
-	"sync"
 	"time"
 
 	"github.com/ALiwoto/ssg/ssg/listUtils"
@@ -126,8 +125,18 @@ func (s *SafeEMap[TKey, TValue]) Add(key TKey, value *TValue) {
 		old.SetValue(value)
 		old.Reset()
 		return
-	} else {
-		s.values[key] = NewEValue(value)
+	}
+
+	s.setNewValue(key, value)
+}
+
+// setNewValue replaces the value for an existing key or registers a new key in
+// all of the map's internal indexes. The caller must hold the map's write lock.
+func (s *SafeEMap[TKey, TValue]) setNewValue(key TKey, value *TValue) {
+	_, exists := s.values[key]
+	s.values[key] = NewEValue(value)
+	if exists {
+		return
 	}
 
 	s.keys = append(s.keys, key)
@@ -141,6 +150,10 @@ func (s *SafeEMap[TKey, TValue]) delete(key TKey, useLock bool) {
 	if useLock {
 		s.lock()
 		defer s.unlock()
+	}
+
+	if s.disabled {
+		return
 	}
 
 	// get index in key slice for key
@@ -172,6 +185,12 @@ func (s *SafeEMap[TKey, TValue]) Delete(key TKey) {
 	s.delete(key, true)
 }
 
+// ForEach calls fn for each entry while holding the map's write lock.
+// The callback must not call another method on this map or wait for a goroutine
+// that does so, because the callback would prevent the lock from being released
+// and cause a deadlock. The callback may start asynchronous map operations as
+// long as it returns without waiting for them. Use the returned ForEachOperation
+// to remove the current entry or stop the iteration.
 func (s *SafeEMap[TKey, TValue]) ForEach(fn func(TKey, *TValue) ForEachOperation) {
 	if fn == nil {
 		return
@@ -266,17 +285,16 @@ func (s *SafeEMap[TKey, TValue]) GetOrCreate(key TKey, createFn func() *TValue) 
 	s.lock()
 	defer s.unlock()
 
-	if s.disabled {
-		return nil
-	}
-
 	value, exists := s.values[key]
 	if exists && !value.IsExpired(s.expiration) {
 		return value.GetValue(true)
 	}
+	if s.disabled {
+		return nil
+	}
 
 	newValue := createFn()
-	s.values[key] = NewEValue(newValue)
+	s.setNewValue(key, newValue)
 	return newValue
 }
 
@@ -317,10 +335,13 @@ func (s *SafeEMap[TKey, TValue]) Clear() {
 	s.lock()
 	defer s.unlock()
 
-	if len(s.values) != 0 {
-		s.values = make(map[TKey]*ExpiringValue[*TValue])
+	if s.disabled {
+		return
 	}
 
+	s.values = make(map[TKey]*ExpiringValue[*TValue])
+	s.keys = nil
+	s.sliceKeyIndex = make(map[TKey]int)
 }
 
 func (s *SafeEMap[TKey, TValue]) Length() int {
@@ -405,15 +426,19 @@ func (s *SafeEMap[TKey, TValue]) IsThreadSafe() bool {
 }
 
 func (s *SafeEMap[TKey, TValue]) IsValid() bool {
+	if s == nil || s.mut == nil {
+		return false
+	}
+
 	s.rLock()
 	defer s.rUnlock()
 
-	return s != nil && len(s.values) > 0 && s.hasValidTimings()
+	return s.values != nil && s.hasValidTimings()
 }
 
-// IsDisabled returns true if this map is disabled.
-// Disabled maps won't be able to add new values, but will still be able to
-// delete/read values.
+// IsDisabled reports whether the map's entries are frozen. A disabled map
+// remains readable, but its entries cannot be added, replaced, or removed.
+// Expiration checks also leave entries untouched while the map is disabled.
 func (s *SafeEMap[TKey, TValue]) IsDisabled() bool {
 	s.rLock()
 	defer s.rUnlock()
@@ -421,7 +446,9 @@ func (s *SafeEMap[TKey, TValue]) IsDisabled() bool {
 	return s.disabled
 }
 
-// Disable will disable this map, turning it into a read-only state.
+// Disable freezes the map's entries. Existing entries remain readable, but
+// calls that would add, replace, delete, clear, or expire entries have no effect
+// until Enable is called.
 func (s *SafeEMap[TKey, TValue]) Disable() {
 	s.lock()
 	defer s.unlock()
@@ -429,7 +456,7 @@ func (s *SafeEMap[TKey, TValue]) Disable() {
 	s.disabled = true
 }
 
-// Enable will enable this map, meaning that it will be able to add new values.
+// Enable unfreezes the map, allowing its entries to be modified again.
 func (s *SafeEMap[TKey, TValue]) Enable() {
 	s.lock()
 	defer s.unlock()
@@ -442,22 +469,16 @@ func (s *SafeEMap[TKey, TValue]) hasValidTimings() bool {
 }
 
 func (s *SafeEMap[TKey, TValue]) EnableChecking() {
-	if s.checkerMut == nil {
-		s.checkerMut = &sync.Mutex{}
-	}
-
-	// this lock here makes sure that only 1 checkLoop is running at a time.
-	s.checkerMut.Lock()
-	defer s.checkerMut.Unlock()
-
 	s.lock()
 	defer s.unlock()
 
-	if s.checkingEnabled {
+	s.checkingEnabled = true
+
+	if s.isInCheckLoop {
 		return
 	}
 
-	s.checkingEnabled = true
+	s.isInCheckLoop = true
 	go s.checkLoop()
 }
 
@@ -532,13 +553,13 @@ func (s *SafeEMap[TKey, TValue]) DoCheck() {
 	s.lock()
 	defer s.unlock()
 
-	if len(s.values) == 0 {
+	if s.disabled || len(s.values) == 0 {
 		return
 	}
 
 	for i, current := range s.values {
 		if current == nil || current.IsExpired(s.expiration) {
-			delete(s.values, i)
+			s.delete(i, false)
 			if s.onExpired != nil {
 				go s.onExpired(i, s.getRealValue(current, false))
 			}
@@ -577,17 +598,31 @@ func (s *SafeEMap[TKey, TValue]) getCheckInterval() time.Duration {
 }
 
 func (s *SafeEMap[TKey, TValue]) checkLoop() {
+	defer s.onCheckLoopFinished()
+
 	for {
 		time.Sleep(max(s.getCheckInterval(), time.Microsecond))
 
 		status := s.getCheckStatus()
 		if status == checkActionReturn {
-			s.DisableChecking()
 			return
 		} else if status == checkActionContinue {
 			continue
 		}
 
 		s.DoCheck()
+	}
+}
+
+func (s *SafeEMap[TKey, TValue]) onCheckLoopFinished() {
+	s.lock()
+	defer s.unlock()
+
+	s.isInCheckLoop = false
+
+	// EnableChecking may have run while this loop was exiting.
+	if s.checkingEnabled {
+		s.isInCheckLoop = true
+		go s.checkLoop()
 	}
 }

@@ -61,6 +61,12 @@ func (s *SafeMap[TKey, TValue]) GetOrCreate(key TKey, createFn func() *TValue) *
 	return newValue
 }
 
+// ForEach calls fn for each entry while holding the map's write lock.
+// The callback must not call another method on this map or wait for a goroutine
+// that does so, because the callback would prevent the lock from being released
+// and cause a deadlock. The callback may start asynchronous map operations as
+// long as it returns without waiting for them. Use the returned ForEachOperation
+// to remove the current entry or stop the iteration.
 func (s *SafeMap[TKey, TValue]) ForEach(fn func(TKey, *TValue) ForEachOperation) {
 	if fn == nil {
 		return
@@ -84,6 +90,12 @@ myFor:
 	}
 }
 
+// ForEachReadOnly calls fn for each entry while holding the map's read lock.
+// The callback must not call another method on this map or wait for a goroutine
+// that does so, because nested locking can deadlock, particularly when a writer
+// is waiting. The callback may start asynchronous map operations as long as it
+// returns without waiting for them. Remove operations returned by the callback
+// are treated as continue or break operations and do not modify the map.
 func (s *SafeMap[TKey, TValue]) ForEachReadOnly(fn func(TKey, *TValue) ForEachOperation) {
 	if fn == nil {
 		return
@@ -171,6 +183,10 @@ func (s *SafeMap[TKey, TValue]) delete(key TKey, useLock bool) {
 		defer s.unlock()
 	}
 
+	if s.disabled {
+		return
+	}
+
 	delete(s.values, key)
 }
 
@@ -227,6 +243,10 @@ func (s *SafeMap[TKey, TValue]) Clear() {
 	s.lock()
 	defer s.unlock()
 
+	if s.disabled {
+		return
+	}
+
 	if len(s.values) != 0 {
 		s.values = make(map[TKey]*TValue)
 	}
@@ -275,9 +295,8 @@ func (s *SafeMap[TKey, TValue]) IsValid() bool {
 	return s.values != nil
 }
 
-// IsDisabled returns true if this map is disabled.
-// Disabled maps won't be able to add new values, but will still be able to
-// delete/read values.
+// IsDisabled reports whether the map's entries are frozen. A disabled map
+// remains readable, but its entries cannot be added, replaced, or removed.
 func (s *SafeMap[TKey, TValue]) IsDisabled() bool {
 	s.rLock()
 	defer s.rUnlock()
@@ -285,7 +304,9 @@ func (s *SafeMap[TKey, TValue]) IsDisabled() bool {
 	return s.disabled
 }
 
-// Disable will disable this map, turning it into a read-only state.
+// Disable freezes the map's entries. Existing entries remain readable, but
+// calls that would add, replace, delete, or clear entries have no effect until
+// Enable is called.
 func (s *SafeMap[TKey, TValue]) Disable() {
 	s.lock()
 	defer s.unlock()
@@ -293,7 +314,7 @@ func (s *SafeMap[TKey, TValue]) Disable() {
 	s.disabled = true
 }
 
-// Enable will enable this map, meaning that it will be able to add new values.
+// Enable unfreezes the map, allowing its entries to be modified again.
 func (s *SafeMap[TKey, TValue]) Enable() {
 	s.lock()
 	defer s.unlock()

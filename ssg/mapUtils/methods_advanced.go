@@ -31,6 +31,12 @@ func (s *AdvancedMap[TKey, TValue]) Add(key TKey, value *TValue) {
 	s.lock()
 	defer s.unlock()
 
+	s.setValue(key, value)
+}
+
+// setValue replaces the value for an existing key or registers a new key in
+// all of the map's internal indexes. The caller must hold the map's write lock.
+func (s *AdvancedMap[TKey, TValue]) setValue(key TKey, value *TValue) {
 	_, exists := s.values[key]
 	s.values[key] = value
 	if exists {
@@ -58,6 +64,12 @@ func (s *AdvancedMap[TKey, TValue]) GetRandom() *TValue {
 	return value
 }
 
+// ForEach calls fn for each entry while holding the map's write lock.
+// The callback must not call another method on this map or wait for a goroutine
+// that does so, because the callback would prevent the lock from being released
+// and cause a deadlock. The callback may start asynchronous map operations as
+// long as it returns without waiting for them. Use the returned ForEachOperation
+// to remove the current entry or stop the iteration.
 func (s *AdvancedMap[TKey, TValue]) ForEach(fn func(TKey, *TValue) ForEachOperation) {
 	if fn == nil {
 		return
@@ -238,7 +250,7 @@ func (s *AdvancedMap[TKey, TValue]) GetOrCreate(key TKey, createFn func() *TValu
 	value := s.values[key]
 	if value == nil {
 		value = createFn()
-		s.values[key] = value
+		s.setValue(key, value)
 	}
 
 	return value
@@ -285,9 +297,9 @@ func (s *AdvancedMap[TKey, TValue]) Clear() {
 	s.lock()
 	defer s.unlock()
 
-	if len(s.values) != 0 {
-		s.values = make(map[TKey]*TValue)
-	}
+	s.values = make(map[TKey]*TValue)
+	s.keys = nil
+	s.sliceKeyIndex = make(map[TKey]int)
 }
 
 func (s *AdvancedMap[TKey, TValue]) Length() int {
@@ -323,7 +335,14 @@ func (s *AdvancedMap[TKey, TValue]) IsThreadSafe() bool {
 }
 
 func (s *AdvancedMap[TKey, TValue]) IsValid() bool {
-	return s != nil && s.Length() > 0
+	if s == nil || s.mut == nil {
+		return false
+	}
+
+	s.rLock()
+	defer s.rUnlock()
+
+	return len(s.values) > 0
 }
 
 //---------------------------------------------------------
