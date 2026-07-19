@@ -26,10 +26,6 @@ func (r *ExecuteCommandResult) WaitAndRun(
 		time.Sleep(interval)
 	}
 
-	if r.Exited() && !r.IsFinished {
-		r.IsFinished = true
-	}
-
 	go handler(r)
 }
 
@@ -37,11 +33,18 @@ func (r *ExecuteCommandResult) WaitAndRun(
 // On Unix systems this reports true if the program exited due to calling exit,
 // but false if the program terminated due to a signal.
 func (r *ExecuteCommandResult) Exited() bool {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	return r.exited()
+}
+
+func (r *ExecuteCommandResult) exited() bool {
 	if r.cmd == nil {
 		return true
 	}
 
-	if r.cmd.ProcessState == nil {
+	if !r.waitCompleted || r.cmd.ProcessState == nil {
 		return false
 	}
 
@@ -49,11 +52,17 @@ func (r *ExecuteCommandResult) Exited() bool {
 }
 
 func (r *ExecuteCommandResult) IsDone() bool {
-	return r.IsFinished || r.IsKilled || r.IsReleased || r.Exited()
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	return r.IsFinished || r.IsKilled || r.IsReleased || r.exited()
 }
 
 func (r *ExecuteCommandResult) UserTime() time.Duration {
-	if r.cmd == nil || r.cmd.ProcessState == nil {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	if r.cmd == nil || !r.waitCompleted || r.cmd.ProcessState == nil {
 		return 0
 	}
 

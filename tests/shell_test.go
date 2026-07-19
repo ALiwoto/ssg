@@ -7,6 +7,7 @@ import (
 	"time"
 
 	ws "github.com/ALiwoto/ssg/ssg"
+	"github.com/ALiwoto/ssg/ssg/shellUtils"
 )
 
 func TestShell01(t *testing.T) {
@@ -60,4 +61,48 @@ func TestShellAsync01(t *testing.T) {
 	})
 
 	wg.Wait()
+}
+
+func TestShellAsyncKillIsRaceFree(t *testing.T) {
+	finished := make(chan bool, 1)
+	result := shellUtils.ExecuteCommandAsync("--", &shellUtils.ExecuteCommandConfig{
+		TargetRunner:  os.Args[0],
+		PrimaryArgs:   []string{"-test.run=^TestShellAsyncHelperProcess$"},
+		AdditionalEnv: append(os.Environ(), "SSG_ASYNC_HELPER_PROCESS=1"),
+		FinishedChan:  finished,
+		IsAsync:       true,
+	})
+	if result == nil {
+		t.Fatal("result is nil")
+	}
+
+	killResult := make(chan error, 1)
+	result.WaitAndRun(5*time.Millisecond, 25*time.Millisecond, func(result *shellUtils.ExecuteCommandResult) {
+		killResult <- result.Kill()
+	})
+
+	select {
+	case err := <-killResult:
+		if err != nil {
+			t.Fatalf("failed to kill async command: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting to kill async command")
+	}
+
+	select {
+	case <-finished:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for killed command to finish")
+	}
+}
+
+func TestShellAsyncHelperProcess(t *testing.T) {
+	if os.Getenv("SSG_ASYNC_HELPER_PROCESS") != "1" {
+		return
+	}
+
+	for {
+		time.Sleep(time.Second)
+	}
 }

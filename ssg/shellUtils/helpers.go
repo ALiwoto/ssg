@@ -248,33 +248,50 @@ func finishUpCommand(
 	config *ExecuteCommandConfig,
 	result *ExecuteCommandResult,
 ) {
+	result.ClosePipes()
+
 	if config.IsAsync {
+		if err := cmd.Start(); err != nil {
+			go finishAsyncCommand(result, err)
+			return
+		}
+
 		go func() {
-			result.ClosePipes()
-			result.Error = cmd.Run()
-			result.IsFinished = true
-			if result.autoSetOutput {
-				stdout, ok := result.cmd.Stdout.(*bytes.Buffer)
-				if ok && stdout != nil {
-					result.Stdout = stdout.String()
-				}
-
-				stderr, ok := result.cmd.Stderr.(*bytes.Buffer)
-				if ok && stderr != nil {
-					result.Stderr = stderr.String()
-				}
-			}
-
-			if result.FinishedChan != nil {
-				result.FinishedChan <- true
-			}
+			finishAsyncCommand(result, cmd.Wait())
 		}()
-	} else {
-		result.ClosePipes()
-		result.Error = cmd.Run()
-		result.IsFinished = true
+		return
 	}
 
+	err := cmd.Run()
+	result.mutex.Lock()
+	result.Error = err
+	result.IsFinished = true
+	result.waitCompleted = true
+	result.mutex.Unlock()
+}
+
+func finishAsyncCommand(result *ExecuteCommandResult, err error) {
+	result.mutex.Lock()
+	result.Error = err
+	result.IsFinished = true
+	result.waitCompleted = true
+	if result.autoSetOutput {
+		stdout, ok := result.cmd.Stdout.(*bytes.Buffer)
+		if ok && stdout != nil {
+			result.Stdout = stdout.String()
+		}
+
+		stderr, ok := result.cmd.Stderr.(*bytes.Buffer)
+		if ok && stderr != nil {
+			result.Stderr = stderr.String()
+		}
+	}
+	finishedChan := result.FinishedChan
+	result.mutex.Unlock()
+
+	if finishedChan != nil {
+		finishedChan <- true
+	}
 }
 
 // GetGitStats function will return the git stats in the following format:

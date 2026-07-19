@@ -59,6 +59,7 @@ type ExecuteCommandResult struct {
 	FinishedChan chan bool
 
 	autoSetOutput bool
+	waitCompleted bool
 	cmd           *exec.Cmd
 	pipedStdin    io.WriteCloser
 	mutex         *sync.Mutex
