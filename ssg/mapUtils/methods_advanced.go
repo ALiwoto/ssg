@@ -3,6 +3,7 @@ package mapUtils
 import (
 	"math/rand"
 
+	"github.com/ALiwoto/ssg/ssg/internal"
 	"github.com/ALiwoto/ssg/ssg/listUtils"
 )
 
@@ -254,6 +255,11 @@ func (s *AdvancedMap[TKey, TValue]) GetOrCreate(key TKey, createFn func() *TValu
 	}
 
 	return value
+}
+
+// GetOrCreateDefault will call GetOrCreate with a default initializer.
+func (s *AdvancedMap[TKey, TValue]) GetOrCreateDefault(key TKey) *TValue {
+	return s.GetOrCreate(key, internal.DefaultInitializer)
 }
 
 func (s *AdvancedMap[TKey, TValue]) GetValue(key TKey) TValue {

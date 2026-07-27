@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/ALiwoto/ssg/ssg/internal"
 	"github.com/ALiwoto/ssg/ssg/listUtils"
 )
 
@@ -296,6 +297,11 @@ func (s *SafeEMap[TKey, TValue]) GetOrCreate(key TKey, createFn func() *TValue) 
 	newValue := createFn()
 	s.setNewValue(key, newValue)
 	return newValue
+}
+
+// GetOrCreateDefault will call GetOrCreate with a default initializer.
+func (s *SafeEMap[TKey, TValue]) GetOrCreateDefault(key TKey) *TValue {
+	return s.GetOrCreate(key, internal.DefaultInitializer)
 }
 
 func (s *SafeEMap[TKey, TValue]) GetValue(key TKey) TValue {

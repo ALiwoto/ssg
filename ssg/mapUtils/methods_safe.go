@@ -1,6 +1,9 @@
 package mapUtils
 
-import "github.com/ALiwoto/ssg/ssg/listUtils"
+import (
+	"github.com/ALiwoto/ssg/ssg/internal"
+	"github.com/ALiwoto/ssg/ssg/listUtils"
+)
 
 func (s *SafeMap[TKey, TValue]) lock() {
 	s.mut.Lock()
@@ -59,6 +62,11 @@ func (s *SafeMap[TKey, TValue]) GetOrCreate(key TKey, createFn func() *TValue) *
 	newValue := createFn()
 	s.values[key] = newValue
 	return newValue
+}
+
+// GetOrCreateDefault will call GetOrCreate with a default initializer.
+func (s *SafeMap[TKey, TValue]) GetOrCreateDefault(key TKey) *TValue {
+	return s.GetOrCreate(key, internal.DefaultInitializer)
 }
 
 // ForEach calls fn for each entry while holding the map's write lock.

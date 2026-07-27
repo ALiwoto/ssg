@@ -5,6 +5,13 @@ import (
 	"strings"
 )
 
+// DefaultInitializer will initialize a new value of type T and
+// return a pointer to it.
+func DefaultInitializer[T any]() *T {
+	var value T
+	return &value
+}
+
 // SplitWhite splits the string with the given separator
 // and will remove the white spaces slices from the results
 func SplitWhite(s string, separator ...string) []string {
