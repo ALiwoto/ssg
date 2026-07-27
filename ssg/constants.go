@@ -5,7 +5,26 @@
 
 package ssg
 
-import "github.com/ALiwoto/ssg/ssg/internal"
+import (
+	"github.com/ALiwoto/ssg/ssg/internal"
+	"github.com/ALiwoto/ssg/ssg/mapUtils"
+)
+
+const (
+	// ForEachOperationBreak will just continue the loop without doing anything.
+	ForEachOperationContinue = mapUtils.ForEachOperationContinue
+
+	// ForEachOperationBreak will just break the loop without doing anything.
+	ForEachOperationBreak = mapUtils.ForEachOperationBreak
+
+	// ForEachOperationBreak will just remove the current item from the list
+	// and continue the loop.
+	ForEachOperationRemove = mapUtils.ForEachOperationRemove
+
+	// ForEachOperationBreak will remove the current item from the list
+	// and break the loop.
+	ForEachOperationRemoveBreak = mapUtils.ForEachOperationRemoveBreak
+)
 
 // the prefix values for commands.
 const (

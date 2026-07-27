@@ -2,18 +2,18 @@ package mapUtils
 
 const (
 	// ForEachOperationBreak will just continue the loop without doing anything.
-	ForEachOperationContinue = 0
+	ForEachOperationContinue ForEachOperation = iota
 
 	// ForEachOperationBreak will just break the loop without doing anything.
-	ForEachOperationBreak = 1
+	ForEachOperationBreak
 
 	// ForEachOperationBreak will just remove the current item from the list
 	// and continue the loop.
-	ForEachOperationRemove = 2
+	ForEachOperationRemove
 
 	// ForEachOperationBreak will remove the current item from the list
 	// and break the loop.
-	ForEachOperationRemoveBreak = 3
+	ForEachOperationRemoveBreak
 )
 
 const (
