@@ -186,6 +186,36 @@ func (s *SafeEMap[TKey, TValue]) Delete(key TKey) {
 	s.delete(key, true)
 }
 
+// DeleteIf deletes key when condFn returns true for its non-nil value.
+// condFn runs while the map is locked; re-using this map inside condFn will
+// result in a deadlock.
+func (s *SafeEMap[TKey, TValue]) DeleteIf(key TKey, condFn func(*TValue) bool) {
+	if condFn == nil {
+		return
+	}
+
+	s.lock()
+	defer s.unlock()
+
+	if s.disabled {
+		return
+	}
+
+	expiringValue := s.values[key]
+	if expiringValue == nil {
+		return
+	}
+
+	value := expiringValue.GetValue(false)
+	if value == nil {
+		return
+	}
+
+	if condFn(value) {
+		s.delete(key, false)
+	}
+}
+
 // ForEach calls fn for each entry while holding the map's write lock.
 // The callback must not call another method on this map or wait for a goroutine
 // that does so, because the callback would prevent the lock from being released

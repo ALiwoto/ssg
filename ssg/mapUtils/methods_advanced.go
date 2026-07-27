@@ -232,6 +232,27 @@ func (s *AdvancedMap[TKey, TValue]) Delete(key TKey) {
 	s.delete(key, true)
 }
 
+// DeleteIf deletes key when condFn returns true for its non-nil value.
+// condFn runs while the map is locked; re-using this map inside condFn will
+// result in a deadlock.
+func (s *AdvancedMap[TKey, TValue]) DeleteIf(key TKey, condFn func(*TValue) bool) {
+	if condFn == nil {
+		return
+	}
+
+	s.lock()
+	defer s.unlock()
+
+	value := s.values[key]
+	if value == nil {
+		return
+	}
+
+	if condFn(value) {
+		s.delete(key, false)
+	}
+}
+
 func (s *AdvancedMap[TKey, TValue]) Get(key TKey) *TValue {
 	s.rLock()
 	defer s.rUnlock()

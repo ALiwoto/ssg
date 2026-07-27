@@ -202,6 +202,31 @@ func (s *SafeMap[TKey, TValue]) Delete(key TKey) {
 	s.delete(key, true)
 }
 
+// DeleteIf deletes key when condFn returns true for its non-nil value.
+// condFn runs while the map is locked; re-using this map inside condFn will
+// result in a deadlock.
+func (s *SafeMap[TKey, TValue]) DeleteIf(key TKey, condFn func(*TValue) bool) {
+	if condFn == nil {
+		return
+	}
+
+	s.lock()
+	defer s.unlock()
+
+	if s.disabled {
+		return
+	}
+
+	value := s.values[key]
+	if value == nil {
+		return
+	}
+
+	if condFn(value) {
+		s.delete(key, false)
+	}
+}
+
 func (s *SafeMap[TKey, TValue]) Get(key TKey) *TValue {
 	s.rLock()
 	defer s.rUnlock()
