@@ -19,7 +19,7 @@ func TestSafeEMapCheckerLoopRapidToggleUniqueness(t *testing.T) {
 		checkerInterval = 100 * time.Microsecond
 	)
 
-	m := ssg.NewSafeEMap[int, int]()
+	m := ssg.NewSafeEMap[int, valuesContainer]()
 	m.SetInterval(checkerInterval)
 	m.EnableChecking()
 	t.Cleanup(m.DisableChecking)
@@ -72,12 +72,12 @@ func TestSafeEMapCheckerLoopProcessesEntriesOnceAfterToggleStress(t *testing.T) 
 		expirationPeriod = 500 * time.Microsecond
 	)
 
-	m := ssg.NewSafeEMap[int, int]()
+	m := ssg.NewSafeEMap[int, valuesContainer]()
 	m.SetInterval(checkerInterval)
 	m.SetExpiration(expirationPeriod)
 
 	var expiredCount atomic.Int64
-	m.SetOnExpired(func(_ int, _ int) {
+	m.SetOnExpired(func(_ int, _ valuesContainer) {
 		expiredCount.Add(1)
 	})
 
@@ -106,7 +106,7 @@ func TestSafeEMapCheckerLoopProcessesEntriesOnceAfterToggleStress(t *testing.T) 
 		<-start
 
 		for key := range entryCount {
-			m.Set(key, key)
+			m.Set(key, valuesContainer{Value1: key, Value2: "expiring"})
 			if key%16 == 0 {
 				runtime.Gosched()
 			}

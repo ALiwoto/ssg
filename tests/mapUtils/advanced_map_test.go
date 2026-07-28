@@ -9,13 +9,12 @@ import (
 )
 
 func TestAdvancedMapGetOrCreateAndClearBookkeeping(t *testing.T) {
-	m := ssg.NewAdvancedMap[string, int]()
+	m := ssg.NewAdvancedMap[string, valuesContainer]()
 
-	created := m.GetOrCreate("created", func() *int {
-		value := 42
-		return &value
+	created := m.GetOrCreate("created", func() (*valuesContainer, bool) {
+		return &valuesContainer{Value1: 42, Value2: "created"}, true
 	})
-	if created == nil || *created != 42 {
+	if created == nil || created.Value1 != 42 || created.Value2 != "created" {
 		t.Fatalf("GetOrCreate returned %v, want 42", created)
 	}
 
@@ -23,15 +22,14 @@ func TestAdvancedMapGetOrCreateAndClearBookkeeping(t *testing.T) {
 	if !ok || key != "created" {
 		t.Fatalf("GetRandomKey returned (%q, %v), want (%q, true)", key, ok, "created")
 	}
-	if value := m.GetRandom(); value == nil || *value != 42 {
+	if value := m.GetRandom(); value == nil || value.Value1 != 42 || value.Value2 != "created" {
 		t.Fatalf("GetRandom returned %v, want 42", value)
 	}
 
 	createCalled := false
-	existing := m.GetOrCreate("created", func() *int {
+	existing := m.GetOrCreate("created", func() (*valuesContainer, bool) {
 		createCalled = true
-		value := 99
-		return &value
+		return &valuesContainer{Value1: 99, Value2: "replacement"}, true
 	})
 	if createCalled || existing != created {
 		t.Fatal("GetOrCreate replaced an existing value")
@@ -48,8 +46,8 @@ func TestAdvancedMapGetOrCreateAndClearBookkeeping(t *testing.T) {
 		t.Fatalf("GetRandomKey returned stale key %q after Delete", key)
 	}
 
-	m.Set("old-1", 1)
-	m.Set("old-2", 2)
+	m.Set("old-1", valuesContainer{Value1: 1, Value2: "old one"})
+	m.Set("old-2", valuesContainer{Value1: 2, Value2: "old two"})
 	m.Clear()
 	if m.Length() != 0 {
 		t.Fatalf("Length after Clear is %d, want 0", m.Length())
@@ -61,13 +59,13 @@ func TestAdvancedMapGetOrCreateAndClearBookkeeping(t *testing.T) {
 		t.Fatalf("GetRandom returned stale value %v after Clear", *value)
 	}
 
-	m.Set("new", 3)
+	m.Set("new", valuesContainer{Value1: 3, Value2: "new"})
 	for range 100 {
 		key, ok := m.GetRandomKey()
 		if !ok || key != "new" {
 			t.Fatalf("GetRandomKey returned (%q, %v), want (%q, true)", key, ok, "new")
 		}
-		if value := m.GetRandom(); value == nil || *value != 3 {
+		if value := m.GetRandom(); value == nil || value.Value1 != 3 || value.Value2 != "new" {
 			t.Fatalf("GetRandom returned %v after Clear, want 3", value)
 		}
 	}
@@ -77,13 +75,13 @@ func TestAdvancedMapAggressiveBookkeepingModel(t *testing.T) {
 	const operationCount = 20_000
 
 	rng := rand.New(rand.NewSource(1))
-	m := ssg.NewAdvancedMap[int, int]()
-	m.SetDefault(-1)
-	model := make(map[int]int)
+	m := ssg.NewAdvancedMap[int, valuesContainer]()
+	m.SetDefault(valuesContainer{Value1: -1, Value2: "default"})
+	model := make(map[int]valuesContainer)
 
 	for step := range operationCount {
 		key := rng.Intn(128)
-		value := step + 1
+		value := valuesContainer{Value1: step + 1, Value2: "model value"}
 
 		switch rng.Intn(12) {
 		case 0, 1, 2:
@@ -95,9 +93,9 @@ func TestAdvancedMapAggressiveBookkeepingModel(t *testing.T) {
 		case 4, 5:
 			expected, exists := model[key]
 			createCalled := false
-			got := m.GetOrCreate(key, func() *int {
+			got := m.GetOrCreate(key, func() (*valuesContainer, bool) {
 				createCalled = true
-				return &value
+				return &value, true
 			})
 			if !exists {
 				expected = value
@@ -107,7 +105,7 @@ func TestAdvancedMapAggressiveBookkeepingModel(t *testing.T) {
 				t.Fatalf("step %d: create callback state is %v, key existed: %v", step, createCalled, exists)
 			}
 			if got == nil || *got != expected {
-				t.Fatalf("step %d: GetOrCreate returned %v, want %d", step, got, expected)
+				t.Fatalf("step %d: GetOrCreate returned %v, want %v", step, got, expected)
 			}
 		case 6, 7:
 			m.Delete(key)
@@ -122,7 +120,7 @@ func TestAdvancedMapAggressiveBookkeepingModel(t *testing.T) {
 			}
 			if exists {
 				if got := m.Get(key); got == nil || *got != expected {
-					t.Fatalf("step %d: Get(%d) returned %v, want %d", step, key, got, expected)
+					t.Fatalf("step %d: Get(%d) returned %v, want %v", step, key, got, expected)
 				}
 			}
 		case 10, 11:
@@ -136,8 +134,8 @@ func TestAdvancedMapAggressiveBookkeepingModel(t *testing.T) {
 func assertAdvancedMapMatchesModel(
 	t *testing.T,
 	step int,
-	m *ssg.AdvancedMap[int, int],
-	model map[int]int,
+	m *ssg.AdvancedMap[int, valuesContainer],
+	model map[int]valuesContainer,
 ) {
 	t.Helper()
 
@@ -151,10 +149,10 @@ func assertAdvancedMapMatchesModel(
 			t.Fatalf("step %d: GetRandomKey returned stale key %d", step, key)
 		}
 		if value := m.GetRandom(); value != nil {
-			t.Fatalf("step %d: GetRandom returned stale value %d", step, *value)
+			t.Fatalf("step %d: GetRandom returned stale value %v", step, *value)
 		}
-		if value := m.GetRandomValue(); value != -1 {
-			t.Fatalf("step %d: GetRandomValue returned %d for empty map, want -1", step, value)
+		if value := m.GetRandomValue(); value.Value1 != -1 || value.Value2 != "default" {
+			t.Fatalf("step %d: GetRandomValue returned %v for empty map, want -1", step, value)
 		}
 		return
 	}
@@ -164,18 +162,18 @@ func assertAdvancedMapMatchesModel(
 		t.Fatalf("step %d: GetRandomKey returned (%d, %v), which is absent from the model", step, key, ok)
 	}
 	if got := m.GetValue(key); got != expected {
-		t.Fatalf("step %d: random key %d resolves to %d, want %d", step, key, got, expected)
+		t.Fatalf("step %d: random key %d resolves to %v, want %v", step, key, got, expected)
 	}
 
 	if value := m.GetRandom(); value == nil || !advancedModelContainsValue(model, *value) {
 		t.Fatalf("step %d: GetRandom returned value outside the model: %v", step, value)
 	}
 	if value := m.GetRandomValue(); !advancedModelContainsValue(model, value) {
-		t.Fatalf("step %d: GetRandomValue returned value outside the model: %d", step, value)
+		t.Fatalf("step %d: GetRandomValue returned value outside the model: %v", step, value)
 	}
 }
 
-func advancedModelContainsValue(model map[int]int, value int) bool {
+func advancedModelContainsValue(model map[int]valuesContainer, value valuesContainer) bool {
 	for _, current := range model {
 		if current == value {
 			return true
@@ -191,8 +189,8 @@ func TestAdvancedMapConcurrentBookkeepingStress(t *testing.T) {
 		operationsPerGo = 2_000
 	)
 
-	m := ssg.NewAdvancedMap[int, int]()
-	m.SetDefault(-1)
+	m := ssg.NewAdvancedMap[int, valuesContainer]()
+	m.SetDefault(valuesContainer{Value1: -1, Value2: "default"})
 	start := make(chan struct{})
 	var wg sync.WaitGroup
 	wg.Add(workerCount)
@@ -205,7 +203,10 @@ func TestAdvancedMapConcurrentBookkeepingStress(t *testing.T) {
 			rng := rand.New(rand.NewSource(int64(worker + 1)))
 			for operation := range operationsPerGo {
 				key := rng.Intn(256)
-				value := worker*operationsPerGo + operation + 1
+				value := valuesContainer{
+					Value1: worker*operationsPerGo + operation + 1,
+					Value2: "worker value",
+				}
 
 				switch rng.Intn(8) {
 				case 0, 1:
@@ -213,7 +214,7 @@ func TestAdvancedMapConcurrentBookkeepingStress(t *testing.T) {
 				case 2:
 					m.Add(key, &value)
 				case 3:
-					m.GetOrCreate(key, func() *int { return &value })
+					m.GetOrCreate(key, func() (*valuesContainer, bool) { return &value, true })
 				case 4:
 					m.Delete(key)
 				case 5:
@@ -235,13 +236,13 @@ func TestAdvancedMapConcurrentBookkeepingStress(t *testing.T) {
 		t.Fatalf("GetRandomKey returned stale key %d after final Clear", key)
 	}
 
-	m.Set(999, 123)
+	m.Set(999, valuesContainer{Value1: 123, Value2: "final"})
 	for range 1_000 {
 		key, ok := m.GetRandomKey()
 		if !ok || key != 999 {
 			t.Fatalf("GetRandomKey returned (%d, %v), want (999, true)", key, ok)
 		}
-		if value := m.GetRandom(); value == nil || *value != 123 {
+		if value := m.GetRandom(); value == nil || value.Value1 != 123 || value.Value2 != "final" {
 			t.Fatalf("GetRandom returned %v, want 123", value)
 		}
 	}

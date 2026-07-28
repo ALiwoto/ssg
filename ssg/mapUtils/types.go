@@ -1,7 +1,26 @@
 package mapUtils
 
+import "github.com/ALiwoto/ssg/ssg/commonUtils"
+
 // ForEachOperation describes an operation that has to be returned
 // from a ForEach method.
 type ForEachOperation int
 
 type checkAction uint8
+
+type GetOptions[TKey comparable, TValue any] struct {
+	// CreateFn will be called when the value is missing inside of the function.
+	// the second return value, `ok bool` is existing flag; if it's true it means
+	// the value must be injected into the map (even if it's nil), otherwise
+	// it won't.
+	//
+	// IMPORTANT: DO **NOT** re-use the map inside of this function, otherwise it will
+	// result in a deadlock.
+	CreateFn commonUtils.PtrCreatorFunc[TValue]
+
+	// DoFn will be called only when the value is found, even if the value is nil.
+	//
+	// IMPORTANT: DO **NOT** re-use the map inside of this function, otherwise it will
+	// result in a deadlock.
+	DoFn func(*TValue)
+}

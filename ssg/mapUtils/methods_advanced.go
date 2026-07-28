@@ -3,7 +3,7 @@ package mapUtils
 import (
 	"math/rand"
 
-	"github.com/ALiwoto/ssg/ssg/internal"
+	"github.com/ALiwoto/ssg/ssg/commonUtils"
 	"github.com/ALiwoto/ssg/ssg/listUtils"
 )
 
@@ -25,7 +25,8 @@ func (s *AdvancedMap[TKey, TValue]) Exists(key TKey) bool {
 	s.rLock()
 	defer s.rUnlock()
 
-	return len(s.values) != 0 && s.values[key] != nil
+	_, exists := s.values[key]
+	return exists
 }
 
 func (s *AdvancedMap[TKey, TValue]) Add(key TKey, value *TValue) {
@@ -253,34 +254,61 @@ func (s *AdvancedMap[TKey, TValue]) DeleteIf(key TKey, condFn func(*TValue) bool
 	}
 }
 
-func (s *AdvancedMap[TKey, TValue]) Get(key TKey) *TValue {
-	s.rLock()
-	defer s.rUnlock()
+func (s *AdvancedMap[TKey, TValue]) GetWithOptions(
+	key TKey,
+	opts *GetOptions[TKey, TValue],
+) *TValue {
+	if opts == nil {
+		s.rLock()
+		defer s.rUnlock()
 
-	value := s.values[key]
-	return value
-}
-
-func (s *AdvancedMap[TKey, TValue]) GetOrCreate(key TKey, createFn func() *TValue) *TValue {
-	if createFn == nil {
-		return nil
+		return s.values[key]
 	}
 
 	s.lock()
 	defer s.unlock()
 
-	value := s.values[key]
-	if value == nil {
-		value = createFn()
+	value, exists := s.values[key]
+	if !exists {
+		if opts.CreateFn == nil {
+			return nil
+		}
+
+		var ok bool
+		value, ok = opts.CreateFn()
+		if !ok {
+			return nil
+		}
+
 		s.setValue(key, value)
+	}
+
+	if opts.DoFn != nil {
+		opts.DoFn(value)
 	}
 
 	return value
 }
 
+func (s *AdvancedMap[TKey, TValue]) Get(key TKey) *TValue {
+	return s.GetWithOptions(key, nil)
+}
+
+func (s *AdvancedMap[TKey, TValue]) GetOrCreate(
+	key TKey,
+	createFn commonUtils.PtrCreatorFunc[TValue],
+) *TValue {
+	return s.GetWithOptions(
+		key,
+		&GetOptions[TKey, TValue]{
+			CreateFn: createFn,
+		},
+	)
+}
+
 // GetOrCreateDefault will call GetOrCreate with a default initializer.
 func (s *AdvancedMap[TKey, TValue]) GetOrCreateDefault(key TKey) *TValue {
-	return s.GetOrCreate(key, internal.DefaultInitializer)
+	return s.GetOrCreate(key, commonUtils.DefaultPtrInitializer)
 }
 
 func (s *AdvancedMap[TKey, TValue]) GetValue(key TKey) TValue {

@@ -37,6 +37,11 @@ type SafeEMap[TKey comparable, TValue any] struct {
 	// disabled determines whether the map is disabled or not.
 	disabled bool
 
+	// preExpiringConditionFn is called when we want to cleanup a value due to its
+	// expiration reaching. it can return false to cancel the cleanup of this value.
+	// Calling the map's methods inside of this function will result in a deadlock.
+	preExpiringConditionFn func(key TKey, value *TValue) bool
+
 	// onExpired is the event function that will be called when a value with the certain
 	// key on the map is expired. this event function will be called in a new goroutine.
 	onExpired func(key TKey, value TValue)

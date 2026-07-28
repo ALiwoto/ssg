@@ -33,8 +33,8 @@ func TestSafeEMapConcurrentGetResetsTimestampSafely(t *testing.T) {
 		readCount   = 500
 	)
 
-	m := ssg.NewSafeEMap[string, int]()
-	m.Set("key", 42)
+	m := ssg.NewSafeEMap[string, valuesContainer]()
+	m.Set("key", valuesContainer{Value1: 42, Value2: "concurrent"})
 
 	start := make(chan struct{})
 	results := make(chan bool, workerCount)
@@ -48,7 +48,7 @@ func TestSafeEMapConcurrentGetResetsTimestampSafely(t *testing.T) {
 
 			for range readCount {
 				value := m.Get("key")
-				if value == nil || *value != 42 {
+				if value == nil || value.Value1 != 42 || value.Value2 != "concurrent" {
 					results <- false
 					return
 				}

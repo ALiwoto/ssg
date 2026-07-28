@@ -1,7 +1,7 @@
 package mapUtils
 
 import (
-	"github.com/ALiwoto/ssg/ssg/internal"
+	"github.com/ALiwoto/ssg/ssg/commonUtils"
 	"github.com/ALiwoto/ssg/ssg/listUtils"
 )
 
@@ -39,34 +39,64 @@ func (s *SafeMap[TKey, TValue]) Add(key TKey, value *TValue) {
 	s.values[key] = value
 }
 
-// GetOrCreate returns the value of the key if it exists, otherwise it creates a new
-// value using the provided createFn function and adds it to the map.
-// If the map is disabled, it won't call createFn and will return nil instead.
-func (s *SafeMap[TKey, TValue]) GetOrCreate(key TKey, createFn func() *TValue) *TValue {
-	if createFn == nil {
-		return s.Get(key)
+func (s *SafeMap[TKey, TValue]) GetWithOptions(
+	key TKey,
+	opts *GetOptions[TKey, TValue],
+) *TValue {
+	if opts == nil {
+		s.rLock()
+		defer s.rUnlock()
+
+		return s.values[key]
 	}
 
 	s.lock()
 	defer s.unlock()
 
 	value, exists := s.values[key]
-	if exists {
-		return value
+	if !exists {
+		if s.disabled || opts.CreateFn == nil {
+			return nil
+		}
+
+		var ok bool
+		value, ok = opts.CreateFn()
+		if !ok {
+			return nil
+		}
+
+		s.values[key] = value
 	}
 
-	if s.disabled {
-		return nil
+	if opts.DoFn != nil {
+		opts.DoFn(value)
 	}
 
-	newValue := createFn()
-	s.values[key] = newValue
-	return newValue
+	return value
+}
+
+func (s *SafeMap[TKey, TValue]) Get(key TKey) *TValue {
+	return s.GetWithOptions(key, nil)
+}
+
+// GetOrCreate returns the value of the key if it exists, otherwise it creates a new
+// value using the provided createFn function and adds it to the map.
+// If the map is disabled, it won't call createFn and will return nil instead.
+func (s *SafeMap[TKey, TValue]) GetOrCreate(
+	key TKey,
+	createFn commonUtils.PtrCreatorFunc[TValue],
+) *TValue {
+	return s.GetWithOptions(
+		key,
+		&GetOptions[TKey, TValue]{
+			CreateFn: createFn,
+		},
+	)
 }
 
 // GetOrCreateDefault will call GetOrCreate with a default initializer.
 func (s *SafeMap[TKey, TValue]) GetOrCreateDefault(key TKey) *TValue {
-	return s.GetOrCreate(key, internal.DefaultInitializer)
+	return s.GetOrCreate(key, commonUtils.DefaultPtrInitializer)
 }
 
 // ForEach calls fn for each entry while holding the map's write lock.
@@ -225,14 +255,6 @@ func (s *SafeMap[TKey, TValue]) DeleteIf(key TKey, condFn func(*TValue) bool) {
 	if condFn(value) {
 		s.delete(key, false)
 	}
-}
-
-func (s *SafeMap[TKey, TValue]) Get(key TKey) *TValue {
-	s.rLock()
-	defer s.rUnlock()
-
-	value := s.values[key]
-	return value
 }
 
 func (s *SafeMap[TKey, TValue]) GetValue(key TKey) TValue {

@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/ALiwoto/ssg/ssg/internal"
+	"github.com/ALiwoto/ssg/ssg/commonUtils"
 	"github.com/ALiwoto/ssg/ssg/listUtils"
 )
 
@@ -296,42 +296,74 @@ func (s *SafeEMap[TKey, TValue]) GetRandomKey() (key TKey, ok bool) {
 	return
 }
 
-func (s *SafeEMap[TKey, TValue]) Get(key TKey) *TValue {
-	s.rLock()
-	defer s.rUnlock()
+func (s *SafeEMap[TKey, TValue]) GetWithOptions(
+	key TKey,
+	opts *GetOptions[TKey, TValue],
+) *TValue {
+	if opts == nil {
+		s.rLock()
+		defer s.rUnlock()
 
-	value := s.values[key]
-	if value == nil {
-		return nil
-	}
+		value := s.values[key]
+		if value == nil {
+			return nil
+		}
 
-	return value.GetValue(true)
-}
-
-func (s *SafeEMap[TKey, TValue]) GetOrCreate(key TKey, createFn func() *TValue) *TValue {
-	if createFn == nil {
-		return s.Get(key)
+		return value.GetValue(true)
 	}
 
 	s.lock()
 	defer s.unlock()
 
-	value, exists := s.values[key]
-	if exists && !value.IsExpired(s.expiration) {
-		return value.GetValue(true)
-	}
-	if s.disabled {
-		return nil
+	expiringValue, exists := s.values[key]
+	found := exists && expiringValue != nil
+	if found && opts.CreateFn != nil {
+		found = !expiringValue.IsExpired(s.expiration)
 	}
 
-	newValue := createFn()
-	s.setNewValue(key, newValue)
-	return newValue
+	var value *TValue
+	if found {
+		value = expiringValue.GetValue(true)
+	} else {
+		if s.disabled || opts.CreateFn == nil {
+			return nil
+		}
+
+		var ok bool
+		value, ok = opts.CreateFn()
+		if !ok {
+			return nil
+		}
+
+		s.setNewValue(key, value)
+	}
+
+	if opts.DoFn != nil {
+		opts.DoFn(value)
+	}
+
+	return value
+}
+
+func (s *SafeEMap[TKey, TValue]) Get(key TKey) *TValue {
+	return s.GetWithOptions(key, nil)
+}
+
+func (s *SafeEMap[TKey, TValue]) GetOrCreate(
+	key TKey,
+	createFn commonUtils.PtrCreatorFunc[TValue],
+) *TValue {
+	return s.GetWithOptions(
+		key,
+		&GetOptions[TKey, TValue]{
+			CreateFn: createFn,
+		},
+	)
 }
 
 // GetOrCreateDefault will call GetOrCreate with a default initializer.
 func (s *SafeEMap[TKey, TValue]) GetOrCreateDefault(key TKey) *TValue {
-	return s.GetOrCreate(key, internal.DefaultInitializer)
+	return s.GetOrCreate(key, commonUtils.DefaultPtrInitializer)
 }
 
 func (s *SafeEMap[TKey, TValue]) GetValue(key TKey) TValue {
@@ -557,6 +589,13 @@ func (s *SafeEMap[TKey, TValue]) SetOnExpiredPtr(event func(key TKey, value *TVa
 	s.onExpiredPtr = event
 }
 
+func (s *SafeEMap[TKey, TValue]) SetPreExpiringConditionFn(fn func(key TKey, value *TValue) bool) {
+	s.lock()
+	defer s.unlock()
+
+	s.preExpiringConditionFn = fn
+}
+
 func (s *SafeEMap[TKey, TValue]) SetInterval(duration time.Duration) {
 	s.lock()
 	defer s.unlock()
@@ -593,15 +632,21 @@ func (s *SafeEMap[TKey, TValue]) DoCheck() {
 		return
 	}
 
-	for i, current := range s.values {
+	for key, current := range s.values {
 		if current == nil || current.IsExpired(s.expiration) {
-			s.delete(i, false)
+			if current != nil &&
+				s.preExpiringConditionFn != nil &&
+				!s.preExpiringConditionFn(key, current.GetValue(false)) {
+				continue
+			}
+
+			s.delete(key, false)
 			if s.onExpired != nil {
-				go s.onExpired(i, s.getRealValue(current, false))
+				go s.onExpired(key, s.getRealValue(current, false))
 			}
 
 			if s.onExpiredPtr != nil {
-				go s.onExpiredPtr(i, current.GetValue(false))
+				go s.onExpiredPtr(key, current.GetValue(false))
 			}
 		}
 	}
