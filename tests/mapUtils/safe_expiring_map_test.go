@@ -96,3 +96,30 @@ func TestSafeEMapDoCheckRemovesKeyIndexes(t *testing.T) {
 		t.Fatalf("GetRandomKey returned stale key %q after deleting post-check entry", key)
 	}
 }
+
+func TestSafeEMapDoCheckHonorsPreExpiringCondition(t *testing.T) {
+	const key = "expired"
+
+	m := ssg.NewSafeEMap[string, valuesContainer]()
+	m.SetExpiration(-time.Nanosecond)
+	m.Set(key, valuesContainer{Value1: 1, Value2: "keep until unused"})
+
+	conditionCalls := 0
+	m.SetPreExpiringConditionFn(func(gotKey string, value *valuesContainer) bool {
+		conditionCalls++
+		return gotKey == key && value.Value1 != 1
+	})
+	m.DoCheck()
+	if conditionCalls != 1 || !m.Exists(key) {
+		t.Fatal("DoCheck removed an entry rejected by the pre-expiring condition")
+	}
+
+	m.SetPreExpiringConditionFn(func(gotKey string, value *valuesContainer) bool {
+		conditionCalls++
+		return gotKey == key && value.Value1 == 1
+	})
+	m.DoCheck()
+	if conditionCalls != 2 || m.Exists(key) {
+		t.Fatal("DoCheck kept an entry accepted by the pre-expiring condition")
+	}
+}

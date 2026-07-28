@@ -108,6 +108,58 @@ func TestSafeEMapGetWithOptionsExpiration(t *testing.T) {
 	}
 }
 
+func TestSafeEMapGetWithOptionsHonorsPreExpiringCondition(t *testing.T) {
+	const key = "value"
+
+	m := mapUtils.NewSafeEMap[string, valuesContainer]()
+	m.SetExpiration(-time.Nanosecond)
+	existing := &valuesContainer{Value1: 1, Value2: "existing"}
+	m.Add(key, existing)
+
+	conditionCalls := 0
+	m.SetPreExpiringConditionFn(func(gotKey string, value *valuesContainer) bool {
+		conditionCalls++
+		if gotKey != key || value != existing {
+			t.Errorf("condition received (%q, %p), want (%q, %p)", gotKey, value, key, existing)
+		}
+		return false
+	})
+
+	createCalled := false
+	value := m.GetWithOptions(key, &mapUtils.GetOptions[string, valuesContainer]{
+		CreateFn: func() (*valuesContainer, bool) {
+			createCalled = true
+			return &valuesContainer{Value1: 2, Value2: "replacement"}, true
+		},
+		DoFn: func(value *valuesContainer) {
+			value.Value1 = 3
+			value.Value2 = "kept"
+		},
+	})
+	if createCalled || conditionCalls != 1 || value != existing {
+		t.Fatal("a rejected expiration replaced the existing value")
+	}
+	if value.Value1 != 3 || value.Value2 != "kept" {
+		t.Fatalf("DoFn did not receive the kept value: %+v", value)
+	}
+
+	m.SetPreExpiringConditionFn(func(_ string, value *valuesContainer) bool {
+		conditionCalls++
+		return value == existing
+	})
+	replacement := m.GetWithOptions(key, &mapUtils.GetOptions[string, valuesContainer]{
+		CreateFn: func() (*valuesContainer, bool) {
+			return &valuesContainer{Value1: 4, Value2: "replacement"}, true
+		},
+	})
+	if conditionCalls != 2 || replacement == nil || replacement == existing {
+		t.Fatal("an accepted expiration did not replace the existing value")
+	}
+	if replacement.Value1 != 4 || replacement.Value2 != "replacement" {
+		t.Fatalf("unexpected replacement value: %+v", replacement)
+	}
+}
+
 func TestSafeMapGetWithOptionsHonorsDisabledState(t *testing.T) {
 	m := mapUtils.NewSafeMap[string, valuesContainer]()
 	m.Disable()

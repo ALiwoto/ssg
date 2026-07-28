@@ -45,9 +45,13 @@ func TestMapIsValidHandlesNilAndZeroValues(t *testing.T) {
 		t.Fatal("zero-value AdvancedMap is valid")
 	}
 	validAdvancedMap := ssg.NewAdvancedMap[int, valuesContainer]()
-	validAdvancedMap.Set(1, valuesContainer{Value1: 1, Value2: "valid"})
 	if !validAdvancedMap.IsValid() {
-		t.Fatal("populated AdvancedMap is invalid")
+		t.Fatal("constructed empty AdvancedMap is invalid")
+	}
+	validAdvancedMap.Set(1, valuesContainer{Value1: 1, Value2: "valid"})
+	validAdvancedMap.Clear()
+	if !validAdvancedMap.IsValid() {
+		t.Fatal("cleared AdvancedMap is invalid")
 	}
 }
 

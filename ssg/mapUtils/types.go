@@ -22,5 +22,9 @@ type GetOptions[TKey comparable, TValue any] struct {
 	//
 	// IMPORTANT: DO **NOT** re-use the map inside of this function, otherwise it will
 	// result in a deadlock.
+	//
+	// If DoFn acquires a lock that remains held after DoFn returns, code holding that
+	// lock must not call this map's methods. Another GetWithOptions call can hold the
+	// map lock while waiting for the value lock, resulting in a lock-order deadlock.
 	DoFn func(*TValue)
 }

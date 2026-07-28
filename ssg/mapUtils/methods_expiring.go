@@ -133,11 +133,15 @@ func (s *SafeEMap[TKey, TValue]) Add(key TKey, value *TValue) {
 
 // setNewValue replaces the value for an existing key or registers a new key in
 // all of the map's internal indexes. The caller must hold the map's write lock.
-func (s *SafeEMap[TKey, TValue]) setNewValue(key TKey, value *TValue) {
+func (s *SafeEMap[TKey, TValue]) setNewValue(
+	key TKey,
+	value *TValue,
+) *ExpiringValue[*TValue] {
 	_, exists := s.values[key]
-	s.values[key] = NewEValue(value)
+	expiringValue := NewEValue(value)
+	s.values[key] = expiringValue
 	if exists {
-		return
+		return expiringValue
 	}
 
 	s.keys = append(s.keys, key)
@@ -145,6 +149,7 @@ func (s *SafeEMap[TKey, TValue]) setNewValue(key TKey, value *TValue) {
 	// store the index of the map key
 	index := len(s.keys) - 1
 	s.sliceKeyIndex[key] = index
+	return expiringValue
 }
 
 func (s *SafeEMap[TKey, TValue]) delete(key TKey, useLock bool) {
@@ -317,8 +322,11 @@ func (s *SafeEMap[TKey, TValue]) GetWithOptions(
 
 	expiringValue, exists := s.values[key]
 	found := exists && expiringValue != nil
-	if found && opts.CreateFn != nil {
-		found = !expiringValue.IsExpired(s.expiration)
+	if found && opts.CreateFn != nil && expiringValue.IsExpired(s.expiration) {
+		found = false
+		if !s.disabled && s.preExpiringConditionFn != nil {
+			found = !s.preExpiringConditionFn(key, expiringValue.GetValue(false))
+		}
 	}
 
 	var value *TValue
@@ -335,11 +343,12 @@ func (s *SafeEMap[TKey, TValue]) GetWithOptions(
 			return nil
 		}
 
-		s.setNewValue(key, value)
+		expiringValue = s.setNewValue(key, value)
 	}
 
 	if opts.DoFn != nil {
 		opts.DoFn(value)
+		expiringValue.Reset()
 	}
 
 	return value
@@ -589,7 +598,17 @@ func (s *SafeEMap[TKey, TValue]) SetOnExpiredPtr(event func(key TKey, value *TVa
 	s.onExpiredPtr = event
 }
 
-func (s *SafeEMap[TKey, TValue]) SetPreExpiringConditionFn(fn func(key TKey, value *TValue) bool) {
+// SetPreExpiringConditionFn sets the condition checked under the map's write lock
+// before an expired value is removed or replaced. Returning false keeps the value;
+// GetWithOptions then treats it as found, refreshes its timestamp, and calls DoFn.
+//
+// For per-key mutex lifetime safety, acquire the mutex inside DoFn and use
+// GetWithOptions for every acquisition. A pointer retained from Get can outlive its
+// map entry and therefore cannot be protected by this condition.
+// Calling this map's methods from fn will result in a deadlock.
+func (s *SafeEMap[TKey, TValue]) SetPreExpiringConditionFn(
+	fn func(key TKey, value *TValue) bool,
+) {
 	s.lock()
 	defer s.unlock()
 

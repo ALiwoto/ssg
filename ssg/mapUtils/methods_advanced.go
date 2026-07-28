@@ -397,7 +397,7 @@ func (s *AdvancedMap[TKey, TValue]) IsValid() bool {
 	s.rLock()
 	defer s.rUnlock()
 
-	return len(s.values) > 0
+	return s.values != nil
 }
 
 //---------------------------------------------------------
