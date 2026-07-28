@@ -317,41 +317,73 @@ func (s *SafeEMap[TKey, TValue]) GetWithOptions(
 		return value.GetValue(true)
 	}
 
-	s.lock()
-	defer s.unlock()
+	// selectedEntry is an identity token that is always revalidated under RLock.
+	// It lets a wrapper selected by the slow path complete this call even when a
+	// zero or negative expiration would otherwise make it immediately expired.
+	var selectedEntry *ExpiringValue[*TValue]
+	for {
+		value, found := func() (*TValue, bool) {
+			s.rLock()
+			defer s.rUnlock()
 
-	expiringValue, exists := s.values[key]
-	found := exists && expiringValue != nil
-	if found && opts.CreateFn != nil && expiringValue.IsExpired(s.expiration) {
-		found = false
-		if !s.disabled && s.preExpiringConditionFn != nil {
-			found = !s.preExpiringConditionFn(key, expiringValue.GetValue(false))
+			entry, exists := s.values[key]
+			usable := exists &&
+				entry != nil &&
+				(entry == selectedEntry ||
+					opts.CreateFn == nil ||
+					!entry.IsExpired(s.expiration))
+			if !usable {
+				return nil, false
+			}
+
+			value := entry.GetValue(true)
+			if opts.DoFn != nil {
+				opts.DoFn(value)
+				entry.Reset()
+			}
+
+			return value, true
+		}()
+		if found {
+			return value
 		}
-	}
 
-	var value *TValue
-	if found {
-		value = expiringValue.GetValue(true)
-	} else {
-		if s.disabled || opts.CreateFn == nil {
+		selectedEntry = nil
+		retry, entry := func() (bool, *ExpiringValue[*TValue]) {
+			s.lock()
+			defer s.unlock()
+
+			entry, exists := s.values[key]
+			found := exists && entry != nil
+			if found &&
+				(opts.CreateFn == nil || !entry.IsExpired(s.expiration)) {
+				return true, nil
+			}
+
+			if found &&
+				!s.disabled &&
+				s.preExpiringConditionFn != nil &&
+				!s.preExpiringConditionFn(key, entry.GetValue(false)) {
+				entry.Reset()
+				return true, entry
+			}
+
+			if s.disabled || opts.CreateFn == nil {
+				return false, nil
+			}
+
+			value, ok := opts.CreateFn()
+			if !ok {
+				return false, nil
+			}
+
+			return true, s.setNewValue(key, value)
+		}()
+		if !retry {
 			return nil
 		}
-
-		var ok bool
-		value, ok = opts.CreateFn()
-		if !ok {
-			return nil
-		}
-
-		expiringValue = s.setNewValue(key, value)
+		selectedEntry = entry
 	}
-
-	if opts.DoFn != nil {
-		opts.DoFn(value)
-		expiringValue.Reset()
-	}
-
-	return value
 }
 
 func (s *SafeEMap[TKey, TValue]) Get(key TKey) *TValue {

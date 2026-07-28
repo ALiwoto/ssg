@@ -265,29 +265,49 @@ func (s *AdvancedMap[TKey, TValue]) GetWithOptions(
 		return s.values[key]
 	}
 
-	s.lock()
-	defer s.unlock()
+	for {
+		value, found := func() (*TValue, bool) {
+			s.rLock()
+			defer s.rUnlock()
 
-	value, exists := s.values[key]
-	if !exists {
-		if opts.CreateFn == nil {
-			return nil
+			value, exists := s.values[key]
+			if !exists {
+				return nil, false
+			}
+
+			if opts.DoFn != nil {
+				opts.DoFn(value)
+			}
+
+			return value, true
+		}()
+		if found {
+			return value
 		}
 
-		var ok bool
-		value, ok = opts.CreateFn()
-		if !ok {
+		retry := func() bool {
+			s.lock()
+			defer s.unlock()
+
+			if _, exists := s.values[key]; exists {
+				return true
+			}
+			if opts.CreateFn == nil {
+				return false
+			}
+
+			value, ok := opts.CreateFn()
+			if !ok {
+				return false
+			}
+
+			s.setValue(key, value)
+			return true
+		}()
+		if !retry {
 			return nil
 		}
-
-		s.setValue(key, value)
 	}
-
-	if opts.DoFn != nil {
-		opts.DoFn(value)
-	}
-
-	return value
 }
 
 func (s *AdvancedMap[TKey, TValue]) Get(key TKey) *TValue {

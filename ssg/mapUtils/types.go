@@ -19,6 +19,9 @@ type GetOptions[TKey comparable, TValue any] struct {
 	CreateFn commonUtils.PtrCreatorFunc[TValue]
 
 	// DoFn will be called only when the value is found, even if the value is nil.
+	// It runs while the map's read lock protects the entry from removal or replacement.
+	// Multiple DoFn callbacks may run concurrently, including for the same key, so
+	// TValue must provide any synchronization required for its own mutable state.
 	//
 	// IMPORTANT: DO **NOT** re-use the map inside of this function, otherwise it will
 	// result in a deadlock.
