@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/ALiwoto/ssg/ssg/caseUtils"
+	"github.com/ALiwoto/ssg/ssg/commonUtils"
 )
 
 // extractFieldValue
@@ -107,7 +108,7 @@ func extractUInt64(_, strValue string) (uint64, error) {
 func extractBool(fType, strValue string) (bool, error) {
 	strValue = strings.TrimSpace(strings.ToLower(strValue))
 	strValue = strings.Trim(strValue, "\"")
-	v, ok := BoolMapping[strings.ToLower(strValue)]
+	v, ok := commonUtils.BoolMapping[strings.ToLower(strValue)]
 	if !ok {
 		return false, ErrInvalidBoolValue
 	}

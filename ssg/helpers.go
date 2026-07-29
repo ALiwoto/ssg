@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,6 +18,7 @@ import (
 	"unicode"
 
 	"github.com/ALiwoto/ssg/ssg/caseUtils"
+	"github.com/ALiwoto/ssg/ssg/commonUtils"
 	"github.com/ALiwoto/ssg/ssg/internal"
 	"github.com/ALiwoto/ssg/ssg/listUtils"
 	"github.com/ALiwoto/ssg/ssg/mapUtils"
@@ -25,56 +27,20 @@ import (
 	"github.com/ALiwoto/ssg/ssg/strongParser"
 )
 
-// Ss will generate a new StrongString
-// with the specified non-encoded string value.
-func Ss(s string) StrongString {
-	_strong := StrongString{}
-	_strong._setValue(s)
-	return _strong
+// This returns the package/function name of the caller.
+func This() string {
+	var pcbuf [1]uintptr
+	runtime.Callers(2, pcbuf[:])
+	frame, _ := runtime.CallersFrames(pcbuf[:]).Next()
+	return frame.Function
 }
 
-// Qss will generate a new QString
-// with the specified non-encoded string value.
-func Qss(s string) QString {
-	str := Ss(s)
-	return &str
-}
-
-// Sb will generate a new StrongString
-// with the specified non-encoded bytes value.
-func Sb(b []byte) StrongString {
-	return Ss(string(b))
-}
-
-// QSb will generate a new QString
-// with the specified non-encoded bytes value.
-func Qsb(b []byte) QString {
-	str := Ss(string(b))
-	return &str
-}
-
-// SS will generate a new StrongString
-// with the specified non-encoded string value.
-func SsPtr(s string) *StrongString {
-	strong := StrongString{}
-	strong._setValue(s)
-	return &strong
-}
-
-func ToStrSlice(qs []QString) []string {
-	tmp := make([]string, len(qs))
-	for i, current := range qs {
-		tmp[i] = current.GetValue()
-	}
-	return tmp
-}
-
-func ToQSlice(strs []string) []QString {
-	tmp := make([]QString, len(strs))
-	for i, current := range strs {
-		tmp[i] = SsPtr(current)
-	}
-	return tmp
+// ThisN returns the package/function n levels below the caller.
+func ThisN(n int) string {
+	var pcbuf [1]uintptr
+	runtime.Callers(n+2, pcbuf[:])
+	frame, _ := runtime.CallersFrames(pcbuf[:]).Next()
+	return frame.Function
 }
 
 // BigPow calculates a raised to the power of b, where a and b are big integers.
@@ -250,12 +216,6 @@ func FixSplitWhite(myStrings []string) []string {
 	return internal.FixSplitWhite(myStrings)
 }
 
-// IsEmpty function will check if the passed-by
-// string value is empty or not.
-func IsEmpty(s *string) bool {
-	return s == nil || len(*s) == BaseIndex
-}
-
 // AreEqual will check if two string ptr are equal to each other or not.
 func AreEqual(s1, s2 *string) bool {
 	if s1 == nil && s2 != nil {
@@ -270,9 +230,9 @@ func AreEqual(s1, s2 *string) bool {
 // YesOrNo returns yes if v is true, otherwise no.
 func YesOrNo(v bool) string {
 	if v {
-		return Yes
+		return "Yes"
 	} else {
-		return No
+		return "No"
 	}
 }
 
@@ -311,8 +271,8 @@ func RunPowerShellAsyncWithChan(command string, finishedChan chan bool) *Execute
 }
 
 // ToBool converts the given string to bool.
-func ToBool(str string) bool {
-	return strongParser.BoolMapping[strings.ToLower(strings.TrimSpace(str))]
+func ToBool(value string) bool {
+	return commonUtils.ToBool(value)
 }
 
 // AppendUnique appends the given value to the given slice if it's not already there.
@@ -623,66 +583,6 @@ func WriteFile(path string, content []byte) error {
 	}
 
 	return nil
-}
-
-func repairString(value string) string {
-	entered := false
-	ignoreNext := false
-	final := EMPTY
-	last := len(value) - BaseIndex
-	next := BaseIndex
-	for i, current := range value {
-		if ignoreNext {
-			ignoreNext = false
-			continue
-		}
-
-		if current == CHAR_STR {
-			if !entered {
-				entered = true
-			} else {
-				entered = false
-			}
-
-			final += string(current)
-			continue
-		} else {
-			if !entered {
-				final += string(current)
-				continue
-			}
-
-			if isSpecial(current) {
-				final += BackSlash + string(current)
-				continue
-			} else {
-				if current == LineChar {
-					if i != last {
-						next = i + BaseOneIndex
-						if value[next] == LineChar {
-							final += BackSlash +
-								string(current) + string(current)
-							ignoreNext = true
-							continue
-						}
-					}
-				}
-			}
-		}
-
-		final += string(current)
-	}
-
-	return final
-}
-
-func isSpecial(r rune) bool {
-	switch r {
-	case EqualChar, DPointChar:
-		return true
-	default:
-		return false
-	}
 }
 
 // GenerateCurrentDateTime format of the date time will be dd/MM/yyyy HH:mm:ss

@@ -10,6 +10,7 @@ import (
 	"unicode"
 
 	"github.com/ALiwoto/ssg/ssg/caseUtils"
+	"github.com/ALiwoto/ssg/ssg/commonUtils"
 	"github.com/ALiwoto/ssg/ssg/internal"
 )
 
@@ -627,7 +628,7 @@ func parseToBoolArray(value string) []bool {
 
 	for i := 0; i < len(arr); i++ {
 		arr[i] = strings.TrimSpace(arr[i])
-		theValue, found := BoolMapping[strings.ToLower(arr[i])]
+		theValue, found := commonUtils.BoolMapping[strings.ToLower(arr[i])]
 		if !found {
 			continue
 		}

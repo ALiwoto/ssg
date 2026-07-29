@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ALiwoto/ssg/ssg/commonUtils"
 	"github.com/ALiwoto/ssg/ssg/rangeValues"
 )
 
@@ -243,7 +244,7 @@ func (p *ConfigParser) GetBool(section, option string) (bool, error) {
 
 	result = strings.ToLower(result)
 
-	booleanValue, present := BoolMapping[result]
+	booleanValue, present := commonUtils.BoolMapping[result]
 	if !present {
 		return false, fmt.Errorf("not a boolean: '%s'", result)
 	}

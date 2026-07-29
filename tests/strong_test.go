@@ -11,12 +11,13 @@ import (
 	"strconv"
 	"testing"
 
-	ws "github.com/ALiwoto/ssg/ssg"
+	"github.com/ALiwoto/ssg/ssg"
+	"github.com/ALiwoto/ssg/ssg/legacyQs"
 )
 
 func TestAppendUnique(t *testing.T) {
 	myArray := []int32{1, 2, 3, 4, 5}
-	myArray = ws.AppendUnique(myArray, 1, 10, 22)
+	myArray = ssg.AppendUnique(myArray, 1, 10, 22)
 
 	if len(myArray) != 7 {
 		t.Error("Expected 7, got", len(myArray))
@@ -24,7 +25,7 @@ func TestAppendUnique(t *testing.T) {
 	}
 
 	anotherArray := []int32{1, 2, 3, 4, 6}
-	anotherArray = ws.AppendUnique(anotherArray, myArray...)
+	anotherArray = ssg.AppendUnique(anotherArray, myArray...)
 
 	if len(anotherArray) != 8 {
 		t.Error("Expected 8, got", len(anotherArray))
@@ -38,7 +39,7 @@ func TestClone(t *testing.T) {
 	}{}
 
 	add1 := fmt.Sprintf("%p", myValue)
-	add2 := fmt.Sprintf("%p", ws.Clone(myValue))
+	add2 := fmt.Sprintf("%p", ssg.Clone(myValue))
 	add3 := fmt.Sprintf("%p", myValue)
 	if add1 == add2 {
 		t.Error("Expected different pointers")
@@ -58,19 +59,19 @@ func TestTitleCase(t *testing.T) {
 		str3 = "HelloThere"
 	)
 
-	tmp := ws.Title(str1)
+	tmp := ssg.Title(str1)
 	if tmp != "String1" {
 		t.Errorf("Expected %s, got %s", "String1", tmp)
 		return
 	}
 
-	tmp = ws.Title(str2)
+	tmp = ssg.Title(str2)
 	if tmp != "ThisIsString2" {
 		t.Errorf("Expected %s, got %s", "ThisIsString2", tmp)
 		return
 	}
 
-	tmp = ws.Title(str3)
+	tmp = ssg.Title(str3)
 	if tmp != "HelloThere" {
 		t.Errorf("Expected %s, got %s", "HelloThere", tmp)
 		return
@@ -80,7 +81,7 @@ func TestTitleCase(t *testing.T) {
 func TestStrong(t *testing.T) {
 	LogStr("Hi")
 	LogInt(5)
-	s := ws.Qss("hello!; how are you? () are you okay?")
+	s := legacyQs.Qss("hello!; how are you? () are you okay?")
 	if s == nil {
 		t.FailNow()
 	} else {
@@ -93,85 +94,85 @@ func TestStrong(t *testing.T) {
 }
 
 func TestToBool(t *testing.T) {
-	s := ws.Qss("true")
+	s := legacyQs.Qss("true")
 	if !s.ToBool() {
 		t.Error("Expected true, got false")
 		return
 	}
 
-	s = ws.Qss("false")
+	s = legacyQs.Qss("false")
 	if s.ToBool() {
 		t.Error("Expected false, got true")
 		return
 	}
 
-	s = ws.Qss("TRUE")
+	s = legacyQs.Qss("TRUE")
 	if !s.ToBool() {
 		t.Error("Expected true, got false")
 		return
 	}
 
-	s = ws.Qss("FALSE")
+	s = legacyQs.Qss("FALSE")
 	if s.ToBool() {
 		t.Error("Expected false, got true")
 		return
 	}
 
-	s = ws.Qss("True")
+	s = legacyQs.Qss("True")
 	if !s.ToBool() {
 		t.Error("Expected true, got false")
 		return
 	}
 
-	s = ws.Qss("False")
+	s = legacyQs.Qss("False")
 	if s.ToBool() {
 		t.Error("Expected false, got true")
 		return
 	}
 
-	s = ws.Qss("on")
+	s = legacyQs.Qss("on")
 	if !s.ToBool() {
 		t.Error("Expected true, got false")
 		return
 	}
 
-	s = ws.Qss("off")
+	s = legacyQs.Qss("off")
 	if s.ToBool() {
 		t.Error("Expected false, got true")
 		return
 	}
 
-	s = ws.Qss("ON")
+	s = legacyQs.Qss("ON")
 	if !s.ToBool() {
 		t.Error("Expected true, got false")
 		return
 	}
 
-	s = ws.Qss("OFF")
+	s = legacyQs.Qss("OFF")
 	if s.ToBool() {
 		t.Error("Expected false, got true")
 		return
 	}
 
-	s = ws.Qss("yes")
+	s = legacyQs.Qss("yes")
 	if !s.ToBool() {
 		t.Error("Expected true, got false")
 		return
 	}
 
-	s = ws.Qss("no")
+	s = legacyQs.Qss("no")
 	if s.ToBool() {
 		t.Error("Expected false, got true")
 		return
 	}
 
-	s = ws.Qss("YES")
+	s = legacyQs.Qss("YES")
 	if !s.ToBool() {
 		t.Error("Expected true, got false")
 		return
 	}
 
-	s = ws.Qss("NO")
+	s = legacyQs.Qss("NO")
 	if s.ToBool() {
 		t.Error("Expected false, got true")
 		return
@@ -188,44 +189,44 @@ func TestIntegerHelpers(t *testing.T) {
 		i0x98760 = int64(0x98760)
 	)
 
-	s := ws.ToBase10(i1)
-	i := ws.ToInt64(s)
-	if ws.ToInt64(s) != i1 {
+	s := ssg.ToBase10(i1)
+	i := ssg.ToInt64(s)
+	if ssg.ToInt64(s) != i1 {
 		t.Errorf("Expected %d, got %d", i1, i)
 		return
 	}
 
-	s = ws.ToBase10(i294)
-	i = ws.ToInt64(s)
-	if ws.ToInt64(s) != i294 {
+	s = ssg.ToBase10(i294)
+	i = ssg.ToInt64(s)
+	if ssg.ToInt64(s) != i294 {
 		t.Errorf("Expected %d, got %d", i294, i)
 		return
 	}
 
-	s = ws.ToBase10(i356)
-	i = ws.ToInt64(s)
-	if ws.ToInt64(s) != i356 {
+	s = ssg.ToBase10(i356)
+	i = ssg.ToInt64(s)
+	if ssg.ToInt64(s) != i356 {
 		t.Errorf("Expected %d, got %d", i356, i)
 		return
 	}
 
-	s = ws.ToBase10(i487)
-	i = ws.ToInt64(s)
-	if ws.ToInt64(s) != i487 {
+	s = ssg.ToBase10(i487)
+	i = ssg.ToInt64(s)
+	if ssg.ToInt64(s) != i487 {
 		t.Errorf("Expected %d, got %d", i487, i)
 		return
 	}
 
-	s = ws.ToBase10(i5900)
-	i = ws.ToInt64(s)
-	if ws.ToInt64(s) != i5900 {
+	s = ssg.ToBase10(i5900)
+	i = ssg.ToInt64(s)
+	if ssg.ToInt64(s) != i5900 {
 		t.Errorf("Expected %d, got %d", i5900, i)
 		return
 	}
 
-	s = ws.ToBase10(i0x98760)
-	i = ws.ToInt64(s)
-	if ws.ToInt64(s) != i0x98760 {
+	s = ssg.ToBase10(i0x98760)
+	i = ssg.ToInt64(s)
+	if ssg.ToInt64(s) != i0x98760 {
 		t.Errorf("Expected %d, got %d", i0x98760, i)
 		return
 	}
